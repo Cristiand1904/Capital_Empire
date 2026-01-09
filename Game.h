@@ -8,6 +8,7 @@
 class Game {
 private:
     Player player;
+    double offlineEarnings; // Store offline earnings to display in UI
     void setupBusinesses();
 
 public:
@@ -21,4 +22,7 @@ public:
     void saveGame(const std::string& filename = "savegame.txt") const;
     bool loadGame(const std::string& filename = "savegame.txt");
     static bool saveFileExists(const std::string& filename = "savegame.txt");
+
+    double getOfflineEarnings() const { return offlineEarnings; }
+    void resetOfflineEarnings() { offlineEarnings = 0.0; }
 };

@@ -43,5 +43,8 @@ public:
     void hireManager(int index);
     void upgradeManager(int index);
 
+    // New method for offline earnings
+    double calculateOfflineEarnings(double secondsOffline) const;
+
     friend void swap(Player& first, Player& second) noexcept;
 };
