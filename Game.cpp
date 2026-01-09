@@ -7,9 +7,10 @@
 #include <algorithm>
 #include <fstream>
 #include <filesystem>
+#include <ctime> // For time manipulation
 
 Game::Game(const std::string& playerName, double initialMoney)
-    : player(playerName, initialMoney) {
+    : player(playerName, initialMoney), offlineEarnings(0.0) {
     setupBusinesses();
 }
 
@@ -32,6 +33,10 @@ void Game::saveGame(const std::string& filename) const {
         std::cerr << "Eroare la salvarea jocului!\n";
         return;
     }
+
+    // Save current timestamp
+    std::time_t now = std::time(nullptr);
+    outFile << now << "\n";
 
     outFile << player.getMoney() << "\n";
 
@@ -62,6 +67,9 @@ bool Game::loadGame(const std::string& filename) {
     if (!inFile.is_open()) {
         return false;
     }
+
+    std::time_t savedTime;
+    inFile >> savedTime;
 
     double money;
     inFile >> money;
@@ -108,6 +116,20 @@ bool Game::loadGame(const std::string& filename) {
     }
 
     inFile.close();
+
+    // Calculate offline earnings
+    std::time_t now = std::time(nullptr);
+    double secondsOffline = std::difftime(now, savedTime);
+
+    if (secondsOffline > 0) {
+        double earnings = player.calculateOfflineEarnings(secondsOffline);
+        // Apply 50% penalty
+        offlineEarnings = earnings * 0.5;
+        if (offlineEarnings > 0) {
+            player.setMoney(player.getMoney() + offlineEarnings);
+        }
+    }
+
     return true;
 }
 

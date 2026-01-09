@@ -147,3 +147,20 @@ void Player::upgradeManager(int index_int) {
     wallet.spendMoney(cost);
     business->upgradeManager();
 }
+
+double Player::calculateOfflineEarnings(double secondsOffline) const {
+    double totalOfflineEarnings = 0.0;
+    for (const auto& b : businesses) {
+        if (b->isOwned() && b->hasManagerHired()) {
+            // Managers automate production.
+            // Calculate how many cycles could have been completed.
+            double productionTime = b->getProductionTime();
+            if (productionTime > 0) {
+                double cycles = secondsOffline / productionTime;
+                double profitPerCycle = b->getProfitPerCycle();
+                totalOfflineEarnings += cycles * profitPerCycle;
+            }
+        }
+    }
+    return totalOfflineEarnings;
+}
