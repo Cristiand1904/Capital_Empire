@@ -2,7 +2,7 @@
 #include <iostream>
 #include <cmath>
 #include <filesystem>
-#include <cstdint> // Added for std::uint8_t
+#include <cstdint>
 
 #define COLOR_BG        sf::Color(30, 30, 35)
 #define COLOR_PANEL     sf::Color(50, 50, 55)
@@ -53,6 +53,7 @@ void Application::initMenuUI() {
     newGameBtn.text = "NEW GAME";
     newGameBtn.color = COLOR_GREEN;
     newGameBtn.type = Button::NEW_GAME;
+    newGameBtn.businessIndex = -1; // Initialized
     newGameBtn.isPressed = false;
     menuButtons.push_back(newGameBtn);
 
@@ -62,6 +63,7 @@ void Application::initMenuUI() {
         loadGameBtn.text = "LOAD GAME";
         loadGameBtn.color = COLOR_BLUE;
         loadGameBtn.type = Button::LOAD_GAME;
+        loadGameBtn.businessIndex = -1;
         loadGameBtn.isPressed = false;
         menuButtons.push_back(loadGameBtn);
     }
@@ -71,6 +73,7 @@ void Application::initMenuUI() {
     achBtn.text = "ACHIEVEMENTS";
     achBtn.color = COLOR_ACCENT;
     achBtn.type = Button::SHOW_ACHIEVEMENTS;
+    achBtn.businessIndex = -1;
     achBtn.isPressed = false;
     menuButtons.push_back(achBtn);
 }
@@ -82,6 +85,7 @@ void Application::initAchievementUI() {
     backBtn.text = "BACK";
     backBtn.color = COLOR_RED;
     backBtn.type = Button::BACK;
+    backBtn.businessIndex = -1;
     backBtn.isPressed = false;
     achievementButtons.push_back(backBtn);
 }
@@ -103,7 +107,7 @@ void Application::initGameUI() {
 
     Button menuBtn;
     menuBtn.rect = sf::FloatRect({140, 20}, {100, 50}); // Moved back to original position
-    menuBtn.text = "MENU"; // Changed text back to MENU
+    menuBtn.text = "MENU";
     menuBtn.color = COLOR_GRAY;
     menuBtn.type = Button::MAIN_MENU;
     menuBtn.businessIndex = -1;
@@ -155,13 +159,11 @@ void Application::run() {
             if (event->is<sf::Event::Closed>()) {
                 window.close();
             }
-            // Debug key to test setManagerHired
             if (event->is<sf::Event::KeyPressed>()) {
                 const auto* keyPressed = event->getIf<sf::Event::KeyPressed>();
                 if (keyPressed->scancode == sf::Keyboard::Scancode::K && currentState == AppState::GAME) {
                     auto& businesses = game->getPlayer().getBusinesses();
                     if (!businesses.empty()) {
-                        // Force fire manager to test the function
                         businesses[0]->setManagerHired(false);
                         spawnFloatingText("Manager Fired (Debug)", 500, 300, COLOR_RED);
                     }
@@ -256,11 +258,6 @@ void Application::updateGame(float dt) {
 
     double newMoney = game->getPlayer().getMoney();
     if (newMoney > oldMoney) {
-        // Spawn floating text for profit
-        // We don't know exactly which business produced it here easily without changing Game logic,
-        // so we'll just spawn it near the money counter for now or generic center
-        // A better way would be to have Game return events.
-        // For now, let's just show it at the top right
         spawnFloatingText("+$" + std::to_string((long long)(newMoney - oldMoney)), 850, 80, COLOR_GREEN);
     }
 }
@@ -268,7 +265,7 @@ void Application::updateGame(float dt) {
 void Application::updateFloatingTexts(float dt) {
     for (auto it = floatingTexts.begin(); it != floatingTexts.end();) {
         it->lifeTime -= dt;
-        it->position.y -= 50.0f * dt; // Move up
+        it->position.y -= 50.0f * dt;
         if (it->lifeTime <= 0) {
             it = floatingTexts.erase(it);
         } else {
@@ -317,13 +314,12 @@ void Application::handleButtonClick(const Button& btn) {
             game = std::make_unique<Game>("Capitalist", 0.0);
             notifications.push_back({"GAME RESET!", 2.0f});
         } else if (btn.type == Button::MAIN_MENU) {
-            game->saveGame(); // Auto-save
+            game->saveGame();
             currentState = AppState::MENU;
             stateTransitionTimer = 0.2f;
-            initMenuUI(); // Refresh menu UI (e.g. to show Load Game if saved)
+            initMenuUI();
         } else if (btn.type == Button::START) {
             game->getPlayer().startBusinessProduction(btn.businessIndex);
-            // Visual feedback
             spawnFloatingText("Working...", 100, 140 + btn.businessIndex * 130, COLOR_WHITE);
         } else if (btn.type == Button::UPGRADE) {
             const auto& businesses = game->getPlayer().getBusinesses();
@@ -443,8 +439,6 @@ void Application::drawAchievements() {
     for (const auto& ach : achievements) {
         sf::Color textColor = ach.isUnlocked() ? COLOR_GREEN : COLOR_GRAY;
         std::string status = ach.isUnlocked() ? "[UNLOCKED] " : "[LOCKED] ";
-
-        // Using getDescription() here to satisfy the unused function warning
         std::string text = status + ach.getName() + ": " + ach.getDescription();
 
         drawText(text, 50, yPos, 24, textColor);
@@ -466,9 +460,8 @@ void Application::drawGame() {
 
 void Application::drawFloatingTexts() {
     for (const auto& ft : floatingTexts) {
-        // Fade out alpha
         sf::Color c = ft.color;
-        c.a = static_cast<std::uint8_t>(255 * (ft.lifeTime / 1.5f)); // Changed sf::Uint8 to std::uint8_t
+        c.a = static_cast<std::uint8_t>(255 * (ft.lifeTime / 1.5f));
         drawText(ft.text, ft.position.x, ft.position.y, 24, c);
     }
 }
@@ -478,7 +471,7 @@ void Application::drawGameHeader() {
     header.setFillColor(COLOR_BLACK);
     window.draw(header);
 
-    drawText("Capital Empire", 300, 30, 40, COLOR_WHITE); // Moved title to x=300
+    drawText("Capital Empire", 300, 30, 40, COLOR_WHITE);
 
     std::string moneyStr = "$" + std::to_string((long long)game->getPlayer().getMoney());
     int moneyWidth = getTextWidth(moneyStr, 50);
