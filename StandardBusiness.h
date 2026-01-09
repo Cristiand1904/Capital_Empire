@@ -4,7 +4,10 @@
 enum class BusinessType {
     LEMONADE,
     ICE_CREAM,
-    RESTAURANT
+    RESTAURANT,
+    PIZZA,
+    DONUT,
+    SHRIMP
 };
 
 class StandardBusiness : public Business {

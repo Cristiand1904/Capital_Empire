@@ -17,6 +17,9 @@ void Game::setupBusinesses() {
     player.addBusiness(std::make_unique<StandardBusiness>("Limonada", BusinessType::LEMONADE, 1, 4, 0, 1.0, 100.0));
     player.addBusiness(std::make_unique<StandardBusiness>("Inghetata", BusinessType::ICE_CREAM, 10, 40, 100, 3.0, 1000.0));
     player.addBusiness(std::make_unique<StandardBusiness>("Restaurant", BusinessType::RESTAURANT, 100, 400, 1000, 10.0, 10000.0));
+    player.addBusiness(std::make_unique<StandardBusiness>("Pizza", BusinessType::PIZZA, 120, 360, 3000, 10.0, 15000.0));
+    player.addBusiness(std::make_unique<StandardBusiness>("Gogosi", BusinessType::DONUT, 500, 1500, 10000, 20.0, 50000.0));
+    player.addBusiness(std::make_unique<StandardBusiness>("Creveti", BusinessType::SHRIMP, 2200, 6600, 40000, 45.0, 200000.0));
 }
 
 std::vector<std::string> Game::update(double deltaTime) {
