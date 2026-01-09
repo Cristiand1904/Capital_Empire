@@ -1,5 +1,5 @@
-#include "../include/Player.h"
-#include "../include/Exceptions.h"
+#include "Player.h"
+#include "Exceptions.h"
 #include <iostream>
 #include <iomanip>
 #include <utility>

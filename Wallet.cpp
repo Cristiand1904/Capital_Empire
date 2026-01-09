@@ -1,4 +1,4 @@
-#include "../include/Wallet.h"
+#include "Wallet.h"
 
 Wallet::Wallet(double initialMoney) : money(initialMoney) {}
 

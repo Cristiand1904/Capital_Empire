@@ -1,4 +1,4 @@
-#include "../include/Application.h"
+#include "Application.h"
 #include <iostream>
 #include <cmath>
 #include <filesystem>
@@ -16,17 +16,15 @@
 #define COLOR_WHITE     sf::Color::White
 #define COLOR_GRAY      sf::Color(128, 128, 128)
 
-Application::Application(bool headless) {
-    (void)headless;
-
-    window.create(sf::VideoMode(1000, 750), "Adventure Capitalist - Ultimate Edition");
+Application::Application() {
+    window.create(sf::VideoMode({1000, 750}), "Adventure Capitalist - Ultimate Edition");
     window.setFramerateLimit(60);
 
-    if (!font.loadFromFile("Roboto-Regular.ttf")) {
-        if (!font.loadFromFile("fonts/Roboto-Regular.ttf")) {
-            if (!font.loadFromFile("C:\\Windows\\Fonts\\arial.ttf")) {
-                if (!font.loadFromFile("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf")) {
-                    if (!font.loadFromFile("/System/Library/Fonts/Supplemental/Arial.ttf")) {
+    if (!font.openFromFile("Roboto-Regular.ttf")) {
+        if (!font.openFromFile("fonts/Roboto-Regular.ttf")) {
+            if (!font.openFromFile("C:\\Windows\\Fonts\\arial.ttf")) {
+                if (!font.openFromFile("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf")) {
+                    if (!font.openFromFile("/System/Library/Fonts/Supplemental/Arial.ttf")) {
                         std::cerr << "Failed to load font! Download Roboto-Regular.ttf from fonts.google.com\n";
                     }
                 }
@@ -49,7 +47,7 @@ void Application::initMenuUI() {
     menuButtons.clear();
 
     Button newGameBtn;
-    newGameBtn.rect = sf::FloatRect(350, 300, 300, 80);
+    newGameBtn.rect = sf::FloatRect({350, 300}, {300, 80});
     newGameBtn.text = "NEW GAME";
     newGameBtn.color = COLOR_GREEN;
     newGameBtn.type = Button::NEW_GAME;
@@ -58,7 +56,7 @@ void Application::initMenuUI() {
 
     if (Game::saveFileExists()) {
         Button loadGameBtn;
-        loadGameBtn.rect = sf::FloatRect(350, 400, 300, 80);
+        loadGameBtn.rect = sf::FloatRect({350, 400}, {300, 80});
         loadGameBtn.text = "LOAD GAME";
         loadGameBtn.color = COLOR_BLUE;
         loadGameBtn.type = Button::LOAD_GAME;
@@ -74,7 +72,7 @@ void Application::initGameUI() {
     }
 
     Button saveBtn;
-    saveBtn.rect = sf::FloatRect(820, 20, 160, 50);
+    saveBtn.rect = sf::FloatRect({820, 20}, {160, 50});
     saveBtn.text = "SAVE & EXIT";
     saveBtn.color = COLOR_RED;
     saveBtn.type = Button::SAVE_EXIT;
@@ -83,7 +81,7 @@ void Application::initGameUI() {
     gameButtons.push_back(saveBtn);
 
     Button resetBtn;
-    resetBtn.rect = sf::FloatRect(20, 20, 100, 50);
+    resetBtn.rect = sf::FloatRect({20, 20}, {100, 50});
     resetBtn.text = "RESET";
     resetBtn.color = COLOR_BLUE;
     resetBtn.type = Button::RESET;
@@ -94,7 +92,7 @@ void Application::initGameUI() {
 
 void Application::createBusinessUI(int index, float yPos) {
     Button startBtn;
-    startBtn.rect = sf::FloatRect(50, yPos, 90, 90);
+    startBtn.rect = sf::FloatRect({50, yPos}, {90, 90});
     startBtn.text = "GO!";
     startBtn.color = COLOR_ACCENT;
     startBtn.type = Button::START;
@@ -103,7 +101,7 @@ void Application::createBusinessUI(int index, float yPos) {
     gameButtons.push_back(startBtn);
 
     Button buyBtn;
-    buyBtn.rect = sf::FloatRect(750, yPos + 15, 200, 60);
+    buyBtn.rect = sf::FloatRect({750, yPos + 15}, {200, 60});
     buyBtn.text = "BUY";
     buyBtn.color = COLOR_ACCENT;
     buyBtn.type = Button::UPGRADE;
@@ -112,7 +110,7 @@ void Application::createBusinessUI(int index, float yPos) {
     gameButtons.push_back(buyBtn);
 
     Button mngBtn;
-    mngBtn.rect = sf::FloatRect(680, yPos + 15, 60, 60);
+    mngBtn.rect = sf::FloatRect({680, yPos + 15}, {60, 60});
     mngBtn.text = "M";
     mngBtn.color = COLOR_BLUE;
     mngBtn.type = Button::MANAGER;
@@ -123,9 +121,8 @@ void Application::createBusinessUI(int index, float yPos) {
 
 void Application::run() {
     while (window.isOpen()) {
-        sf::Event event;
-        while (window.pollEvent(event)) {
-            if (event.type == sf::Event::Closed) {
+        while (const std::optional event = window.pollEvent()) {
+            if (event->is<sf::Event::Closed>()) {
                 window.close();
             }
         }
@@ -136,22 +133,14 @@ void Application::run() {
     }
 }
 
-void Application::runHeadless() {
-    std::cout << "Running in HEADLESS mode (CI/CD)...\n";
-    for (int i = 0; i < 10; ++i) {
-        game->update(1.0f / 60.0f);
-    }
-    std::cout << "Headless run completed successfully.\n";
-}
-
 bool Application::isButtonClicked(Button& btn, const sf::Vector2i& mousePos) {
     if (stateTransitionTimer > 0.0f) return false;
 
-    bool hover = btn.rect.contains(static_cast<float>(mousePos.x), static_cast<float>(mousePos.y));
+    bool hover = btn.rect.contains({static_cast<float>(mousePos.x), static_cast<float>(mousePos.y)});
 
-    if (hover && sf::Mouse::isButtonPressed(sf::Mouse::Left)) {
+    if (hover && sf::Mouse::isButtonPressed(sf::Mouse::Button::Left)) {
         btn.isPressed = true;
-    } else if (!sf::Mouse::isButtonPressed(sf::Mouse::Left)) {
+    } else if (!sf::Mouse::isButtonPressed(sf::Mouse::Button::Left)) {
         if (btn.isPressed && hover) {
             btn.isPressed = false;
             return true;
@@ -371,7 +360,7 @@ void Application::drawGameBusinesses() {
         const auto& b = businesses[i];
 
         sf::RectangleShape panel(sf::Vector2f(960, 110));
-        panel.setPosition(20, yPos - 10);
+        panel.setPosition({20, yPos - 10});
         panel.setFillColor(COLOR_PANEL);
         panel.setOutlineColor(COLOR_BLACK);
         panel.setOutlineThickness(2);
@@ -383,20 +372,20 @@ void Application::drawGameBusinesses() {
         float barH = 35;
 
         sf::RectangleShape bar(sf::Vector2f(barW, barH));
-        bar.setPosition(barX, barY);
+        bar.setPosition({barX, barY});
         bar.setFillColor(COLOR_BLACK);
         window.draw(bar);
 
         if (b->isOwned()) {
             float progress = b->getProgress();
             sf::RectangleShape progressBar(sf::Vector2f(barW * progress, barH));
-            progressBar.setPosition(barX, barY);
+            progressBar.setPosition({barX, barY});
             progressBar.setFillColor(COLOR_GREEN);
             window.draw(progressBar);
 
             if (progress >= 1.0f) {
                 sf::RectangleShape outline(sf::Vector2f(barW, barH));
-                outline.setPosition(barX, barY);
+                outline.setPosition({barX, barY});
                 outline.setFillColor(sf::Color::Transparent);
                 outline.setOutlineColor(COLOR_WHITE);
                 outline.setOutlineThickness(2);
@@ -437,7 +426,7 @@ void Application::drawGameNotifications() {
         int boxY = 375 - boxH / 2;
 
         sf::RectangleShape box(sf::Vector2f(boxW, boxH));
-        box.setPosition(boxX, boxY);
+        box.setPosition({(float)boxX, (float)boxY});
         box.setFillColor(COLOR_BLACK);
         box.setOutlineColor(COLOR_ACCENT);
         box.setOutlineThickness(4);
@@ -462,15 +451,15 @@ void Application::drawGameNotifications() {
 void Application::drawButton(const Button& btn, bool isCircle) {
     sf::FloatRect drawRect = btn.rect;
     if (btn.isPressed) {
-        drawRect.left += 2;
-        drawRect.top += 2;
-        drawRect.width -= 4;
-        drawRect.height -= 4;
+        drawRect.position.x += 2;
+        drawRect.position.y += 2;
+        drawRect.size.x -= 4;
+        drawRect.size.y -= 4;
     }
 
     if (isCircle) {
-        sf::CircleShape circle(drawRect.width / 2);
-        circle.setPosition(drawRect.left, drawRect.top);
+        sf::CircleShape circle(drawRect.size.x / 2);
+        circle.setPosition({drawRect.position.x, drawRect.position.y});
         circle.setFillColor(btn.color);
         circle.setOutlineColor(COLOR_BLACK);
         circle.setOutlineThickness(2);
@@ -479,10 +468,10 @@ void Application::drawButton(const Button& btn, bool isCircle) {
         const char* iconText = "Click";
         if (btn.color == COLOR_GREEN) iconText = "Auto";
         int w = getTextWidth(iconText, 20);
-        drawText(iconText, drawRect.left + drawRect.width/2 - w/2, drawRect.top + drawRect.height/2 - 10, 20, COLOR_BLACK);
+        drawText(iconText, drawRect.position.x + drawRect.size.x/2 - w/2, drawRect.position.y + drawRect.size.y/2 - 10, 20, COLOR_BLACK);
     } else {
-        sf::RectangleShape rect(sf::Vector2f(drawRect.width, drawRect.height));
-        rect.setPosition(drawRect.left, drawRect.top);
+        sf::RectangleShape rect(sf::Vector2f(drawRect.size.x, drawRect.size.y));
+        rect.setPosition({drawRect.position.x, drawRect.position.y});
         rect.setFillColor(btn.color);
         rect.setOutlineColor(COLOR_BLACK);
         rect.setOutlineThickness(2);
@@ -496,29 +485,27 @@ void Application::drawButton(const Button& btn, bool isCircle) {
             int w1 = getTextWidth(line1, 20);
             int w2 = getTextWidth(line2, 20);
 
-            drawText(line1, drawRect.left + drawRect.width/2 - w1/2, drawRect.top + 10, 20, COLOR_WHITE);
-            drawText(line2, drawRect.left + drawRect.width/2 - w2/2, drawRect.top + 35, 20, COLOR_WHITE);
+            drawText(line1, drawRect.position.x + drawRect.size.x/2 - w1/2, drawRect.position.y + 10, 20, COLOR_WHITE);
+            drawText(line2, drawRect.position.x + drawRect.size.x/2 - w2/2, drawRect.position.y + 35, 20, COLOR_WHITE);
         } else {
             int w = getTextWidth(btn.text, 20);
-            drawText(btn.text, drawRect.left + drawRect.width/2 - w/2, drawRect.top + drawRect.height/2 - 10, 20, COLOR_WHITE);
+            drawText(btn.text, drawRect.position.x + drawRect.size.x/2 - w/2, drawRect.position.y + drawRect.size.y/2 - 10, 20, COLOR_WHITE);
         }
     }
 }
 
 void Application::drawText(const std::string& text, float x, float y, int size, sf::Color color) {
-    sf::Text sfText;
-    sfText.setFont(font);
+    sf::Text sfText(font);
     sfText.setString(text);
     sfText.setCharacterSize(size);
     sfText.setFillColor(color);
-    sfText.setPosition(x, y);
+    sfText.setPosition({x, y});
     window.draw(sfText);
 }
 
 int Application::getTextWidth(const std::string& text, int size) {
-    sf::Text sfText;
-    sfText.setFont(font);
+    sf::Text sfText(font);
     sfText.setString(text);
     sfText.setCharacterSize(size);
-    return sfText.getLocalBounds().width;
+    return sfText.getLocalBounds().size.x;
 }

@@ -1,4 +1,4 @@
-#include "../include/Achievement.h"
+#include "Achievement.h"
 #include <iostream>
 
 Achievement::Achievement(std::string name, std::string desc, double reward, AchievementType type, double target)
