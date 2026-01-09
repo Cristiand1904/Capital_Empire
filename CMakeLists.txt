@@ -110,10 +110,11 @@ endif()
 
 copy_files(FILES tastatura.txt COPY_TO_DESTINATION TARGET_NAME ${MAIN_EXECUTABLE_NAME})
 
-# Copy SFML DLLs automatically from the build folder to the executable folder
-add_custom_command(TARGET ${MAIN_EXECUTABLE_NAME} POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy_directory
-    ${SFML_BINARY_DIR}/bin
-    $<TARGET_FILE_DIR:${MAIN_EXECUTABLE_NAME}>
-    COMMENT "Copying SFML DLLs to executable directory"
-)
+if(WIN32)
+    add_custom_command(TARGET ${MAIN_EXECUTABLE_NAME} POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_directory
+        ${SFML_BINARY_DIR}/bin
+        $<TARGET_FILE_DIR:${MAIN_EXECUTABLE_NAME}>
+        COMMENT "Copying SFML DLLs to executable directory"
+    )
+endif()
