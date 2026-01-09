@@ -2,7 +2,7 @@
 #include <iostream>
 #include <cmath>
 #include <filesystem>
-#include <cstdint>
+#include <cstdint> // Added for std::uint8_t
 
 #define COLOR_BG        sf::Color(30, 30, 35)
 #define COLOR_PANEL     sf::Color(50, 50, 55)
@@ -18,7 +18,8 @@
 #define COLOR_GRAY      sf::Color(128, 128, 128)
 
 Application::Application() {
-    window.create(sf::VideoMode({1000, 750}), "Capital Empire - Ultimate Edition");
+    // Increased window height to accommodate 6 businesses
+    window.create(sf::VideoMode({1000, 900}), "Capital Empire - Ultimate Edition");
     window.setFramerateLimit(60);
 
     if (!font.openFromFile("Roboto-Regular.ttf")) {
@@ -63,7 +64,7 @@ void Application::initMenuUI() {
         loadGameBtn.text = "LOAD GAME";
         loadGameBtn.color = COLOR_BLUE;
         loadGameBtn.type = Button::LOAD_GAME;
-        loadGameBtn.businessIndex = -1;
+        loadGameBtn.businessIndex = -1; // Initialized
         loadGameBtn.isPressed = false;
         menuButtons.push_back(loadGameBtn);
     }
@@ -73,7 +74,7 @@ void Application::initMenuUI() {
     achBtn.text = "ACHIEVEMENTS";
     achBtn.color = COLOR_ACCENT;
     achBtn.type = Button::SHOW_ACHIEVEMENTS;
-    achBtn.businessIndex = -1;
+    achBtn.businessIndex = -1; // Initialized
     achBtn.isPressed = false;
     menuButtons.push_back(achBtn);
 }
@@ -85,15 +86,15 @@ void Application::initAchievementUI() {
     backBtn.text = "BACK";
     backBtn.color = COLOR_RED;
     backBtn.type = Button::BACK;
-    backBtn.businessIndex = -1;
+    backBtn.businessIndex = -1; // Initialized
     backBtn.isPressed = false;
     achievementButtons.push_back(backBtn);
 }
 
 void Application::initGameUI() {
     gameButtons.clear();
-    for(int i=0; i<3; ++i) {
-        createBusinessUI(i, 140 + i * 130);
+    for(int i=0; i<6; ++i) {
+        createBusinessUI(i, 120 + i * 120);
     }
 
     Button saveBtn;
@@ -106,7 +107,7 @@ void Application::initGameUI() {
     gameButtons.push_back(saveBtn);
 
     Button menuBtn;
-    menuBtn.rect = sf::FloatRect({140, 20}, {100, 50}); // Moved back to original position
+    menuBtn.rect = sf::FloatRect({140, 20}, {100, 50});
     menuBtn.text = "MENU";
     menuBtn.color = COLOR_GRAY;
     menuBtn.type = Button::MAIN_MENU;
@@ -135,7 +136,7 @@ void Application::createBusinessUI(int index, float yPos) {
     gameButtons.push_back(startBtn);
 
     Button buyBtn;
-    buyBtn.rect = sf::FloatRect({750, yPos + 15}, {200, 60});
+    buyBtn.rect = sf::FloatRect({760, yPos + 15}, {200, 60}); // Moved to 760
     buyBtn.text = "BUY";
     buyBtn.color = COLOR_ACCENT;
     buyBtn.type = Button::UPGRADE;
@@ -144,7 +145,7 @@ void Application::createBusinessUI(int index, float yPos) {
     gameButtons.push_back(buyBtn);
 
     Button mngBtn;
-    mngBtn.rect = sf::FloatRect({680, yPos + 15}, {60, 60});
+    mngBtn.rect = sf::FloatRect({670, yPos + 15}, {80, 60}); // Widened to 80, moved to 670
     mngBtn.text = "M";
     mngBtn.color = COLOR_BLUE;
     mngBtn.type = Button::MANAGER;
@@ -320,26 +321,26 @@ void Application::handleButtonClick(const Button& btn) {
             initMenuUI();
         } else if (btn.type == Button::START) {
             game->getPlayer().startBusinessProduction(btn.businessIndex);
-            spawnFloatingText("Working...", 100, 140 + btn.businessIndex * 130, COLOR_WHITE);
+            spawnFloatingText("Working...", 100, 140 + btn.businessIndex * 120, COLOR_WHITE);
         } else if (btn.type == Button::UPGRADE) {
             const auto& businesses = game->getPlayer().getBusinesses();
             if (btn.businessIndex >= 0 && static_cast<size_t>(btn.businessIndex) < businesses.size()) {
                 if (businesses[btn.businessIndex]->isOwned()) {
                     game->getPlayer().upgradeBusiness(btn.businessIndex);
-                    spawnFloatingText("Upgraded!", 750, 140 + btn.businessIndex * 130, COLOR_GREEN);
+                    spawnFloatingText("Upgraded!", 750, 140 + btn.businessIndex * 120, COLOR_GREEN);
                 } else {
                     game->getPlayer().purchaseBusiness(btn.businessIndex);
-                    spawnFloatingText("Purchased!", 750, 140 + btn.businessIndex * 130, COLOR_GREEN);
+                    spawnFloatingText("Purchased!", 750, 140 + btn.businessIndex * 120, COLOR_GREEN);
                 }
             }
         } else if (btn.type == Button::MANAGER) {
             const auto& businesses = game->getPlayer().getBusinesses();
             if (businesses[btn.businessIndex]->hasManagerHired()) {
                 game->getPlayer().upgradeManager(btn.businessIndex);
-                spawnFloatingText("Manager Upgraded!", 680, 140 + btn.businessIndex * 130, COLOR_BLUE);
+                spawnFloatingText("Manager Upgraded!", 680, 140 + btn.businessIndex * 120, COLOR_BLUE);
             } else {
                 game->getPlayer().hireManager(btn.businessIndex);
-                spawnFloatingText("Manager Hired!", 680, 140 + btn.businessIndex * 130, COLOR_BLUE);
+                spawnFloatingText("Manager Hired!", 680, 140 + btn.businessIndex * 120, COLOR_BLUE);
             }
         }
     } catch (const std::exception& e) {
@@ -439,6 +440,7 @@ void Application::drawAchievements() {
     for (const auto& ach : achievements) {
         sf::Color textColor = ach.isUnlocked() ? COLOR_GREEN : COLOR_GRAY;
         std::string status = ach.isUnlocked() ? "[UNLOCKED] " : "[LOCKED] ";
+
         std::string text = status + ach.getName() + ": " + ach.getDescription();
 
         drawText(text, 50, yPos, 24, textColor);
@@ -482,7 +484,7 @@ void Application::drawGameBusinesses() {
     const auto& businesses = game->getPlayer().getBusinesses();
 
     for (size_t i = 0; i < businesses.size(); ++i) {
-        float yPos = 140 + i * 130;
+        float yPos = 120 + i * 120;
         const auto& b = businesses[i];
 
         sf::RectangleShape panel(sf::Vector2f(960, 110));
