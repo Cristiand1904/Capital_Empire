@@ -1,6 +1,6 @@
-#include "../include/Game.h"
-#include "../include/Exceptions.h"
-#include "../include/StandardBusiness.h"
+#include "Game.h"
+#include "Exceptions.h"
+#include "StandardBusiness.h"
 #include <iostream>
 #include <iomanip>
 #include <limits>

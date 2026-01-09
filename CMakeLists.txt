@@ -58,6 +58,24 @@ endif()
 # NOTE: update executable name in .github/workflows/cmake.yml:25 when changing name here
 add_executable(${MAIN_EXECUTABLE_NAME}
     main.cpp
+        Achievement.cpp
+        Achievement.h
+        Application.cpp
+        Application.h
+        Business.cpp
+        Business.h
+        Game.cpp
+        Game.h
+        Manager.cpp
+        Manager.h
+        Player.cpp
+        Player.h
+        StandardBusiness.cpp
+        StandardBusiness.h
+        Upgrade.cpp
+        Upgrade.h
+        Wallet.cpp
+        Wallet.h
 )
 
 # NOTE: Add all defined targets (e.g. executables, libraries, etc. )
@@ -91,5 +109,11 @@ endif()
 
 
 copy_files(FILES tastatura.txt COPY_TO_DESTINATION TARGET_NAME ${MAIN_EXECUTABLE_NAME})
-# copy_files(FILES tastatura.txt config.json DIRECTORY images sounds COPY_TO_DESTINATION TARGET_NAME ${MAIN_EXECUTABLE_NAME})
-# copy_files(DIRECTORY images sounds COPY_TO_DESTINATION TARGET_NAME ${MAIN_EXECUTABLE_NAME})
+
+# Copy SFML DLLs automatically from the build folder to the executable folder
+add_custom_command(TARGET ${MAIN_EXECUTABLE_NAME} POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+    ${SFML_BINARY_DIR}/bin
+    $<TARGET_FILE_DIR:${MAIN_EXECUTABLE_NAME}>
+    COMMENT "Copying SFML DLLs to executable directory"
+)

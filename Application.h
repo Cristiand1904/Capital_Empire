@@ -64,7 +64,6 @@ private:
     int getTextWidth(const std::string& text, int size);
 
 public:
-    Application(bool headless = false);
+    Application();
     void run();
-    void runHeadless();
 };

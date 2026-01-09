@@ -1,4 +1,4 @@
-#include "../include/StandardBusiness.h"
+#include "StandardBusiness.h"
 #include <iostream>
 
 StandardBusiness::StandardBusiness(std::string name, BusinessType type, double profit, double upgrade, double cost, double time, double mngCost)
