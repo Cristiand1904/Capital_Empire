@@ -7,9 +7,12 @@
 Business::Business(std::string name, double profit, double upgrade, double cost, double time, double mngCost)
     : name(std::move(name)),
       profitPerCycle(profit),
+      initialProfit(profit),
       upgradeCost(upgrade),
+      initialUpgradeCost(upgrade),
       purchaseCost(cost),
       managerBaseCost(mngCost),
+      initialProductionTime(time),
       level(0),
       owned(false),
       manager(nullptr),
@@ -27,15 +30,19 @@ Business::Business(std::string name, double profit, double upgrade, double cost,
 
     if (upgradeCost <= 0) {
         upgradeCost = 10.0;
+        initialUpgradeCost = 10.0;
     }
 }
 
 Business::Business(const Business& other)
     : name(other.name),
       profitPerCycle(other.profitPerCycle),
+      initialProfit(other.initialProfit),
       upgradeCost(other.upgradeCost),
+      initialUpgradeCost(other.initialUpgradeCost),
       purchaseCost(other.purchaseCost),
       managerBaseCost(other.managerBaseCost),
+      initialProductionTime(other.initialProductionTime),
       level(other.level),
       owned(other.owned),
       upgrades(other.upgrades),
@@ -55,9 +62,12 @@ Business& Business::operator=(const Business& other) {
     }
     name = other.name;
     profitPerCycle = other.profitPerCycle;
+    initialProfit = other.initialProfit;
     upgradeCost = other.upgradeCost;
+    initialUpgradeCost = other.initialUpgradeCost;
     purchaseCost = other.purchaseCost;
     managerBaseCost = other.managerBaseCost;
+    initialProductionTime = other.initialProductionTime;
     level = other.level;
     owned = other.owned;
     upgrades = other.upgrades;
@@ -131,6 +141,17 @@ void Business::upgradeManager() {
     if (manager) {
         manager->upgrade();
     }
+}
+
+void Business::reset() {
+    level = 0;
+    owned = false;
+    profitPerCycle = initialProfit;
+    upgradeCost = initialUpgradeCost;
+    productionTime = initialProductionTime;
+    manager = nullptr;
+    currentTimer = 0.0;
+    isProducing = false;
 }
 
 void Business::setLevel(int lvl) { level = lvl; }

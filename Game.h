@@ -8,7 +8,7 @@
 class Game {
 private:
     Player player;
-    double offlineEarnings; // Store offline earnings to display in UI
+    double offlineEarnings;
     void setupBusinesses();
 
 public:

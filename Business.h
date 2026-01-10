@@ -10,9 +10,12 @@ class Business {
 protected:
     std::string name;
     double profitPerCycle;
+    double initialProfit;
     double upgradeCost;
+    double initialUpgradeCost;
     double purchaseCost;
     double managerBaseCost;
+    double initialProductionTime;
     int level;
     bool owned;
     std::unique_ptr<Manager> manager;
@@ -46,6 +49,7 @@ public:
     void unlock();
     void hireManager();
     void upgradeManager();
+    void reset();
 
     void setLevel(int lvl);
     void setOwned(bool o);

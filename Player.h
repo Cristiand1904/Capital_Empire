@@ -10,6 +10,7 @@ class Player {
 private:
     std::string name;
     Wallet wallet;
+    int gold;
     std::vector<std::unique_ptr<Business>> businesses;
     std::vector<Achievement> achievements;
 
@@ -27,6 +28,8 @@ public:
 
     const std::string& getName() const;
     double getMoney() const;
+    int getGold() const;
+    void setGold(int g);
     const std::vector<std::unique_ptr<Business>>& getBusinesses() const;
     const std::vector<Achievement>& getAchievements() const;
 
@@ -43,8 +46,11 @@ public:
     void hireManager(int index);
     void upgradeManager(int index);
 
-    // New method for offline earnings
     double calculateOfflineEarnings(double secondsOffline) const;
+
+    bool canPrestige() const;
+    int calculatePrestigeGold() const;
+    int prestige();
 
     friend void swap(Player& first, Player& second) noexcept;
 };

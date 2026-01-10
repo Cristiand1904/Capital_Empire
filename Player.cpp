@@ -4,9 +4,10 @@
 #include <iomanip>
 #include <utility>
 #include <stdexcept>
+#include <cmath>
 
 Player::Player(const std::string& name, double money)
-    : name(name), wallet(money) {
+    : name(name), wallet(money), gold(0) {
     initAchievements();
 }
 
@@ -20,7 +21,7 @@ void Player::initAchievements() {
 }
 
 Player::Player(const Player& other)
-    : name(other.name), wallet(other.wallet), achievements(other.achievements) {
+    : name(other.name), wallet(other.wallet), gold(other.gold), achievements(other.achievements) {
     businesses.reserve(other.businesses.size());
     for (const auto& b : other.businesses) {
         businesses.push_back(b->clone());
@@ -31,6 +32,7 @@ void swap(Player& first, Player& second) noexcept {
     using std::swap;
     swap(first.name, second.name);
     swap(first.wallet, second.wallet);
+    swap(first.gold, second.gold);
     swap(first.businesses, second.businesses);
     swap(first.achievements, second.achievements);
 }
@@ -46,6 +48,8 @@ void Player::addBusiness(std::unique_ptr<Business> business) {
 
 const std::string& Player::getName() const { return name; }
 double Player::getMoney() const { return wallet.getMoney(); }
+int Player::getGold() const { return gold; }
+void Player::setGold(int g) { gold = g; }
 const std::vector<std::unique_ptr<Business>>& Player::getBusinesses() const { return businesses; }
 const std::vector<Achievement>& Player::getAchievements() const { return achievements; }
 
@@ -152,8 +156,6 @@ double Player::calculateOfflineEarnings(double secondsOffline) const {
     double totalOfflineEarnings = 0.0;
     for (const auto& b : businesses) {
         if (b->isOwned() && b->hasManagerHired()) {
-            // Managers automate production.
-            // Calculate how many cycles could have been completed.
             double productionTime = b->getProductionTime();
             if (productionTime > 0) {
                 double cycles = secondsOffline / productionTime;
@@ -163,4 +165,36 @@ double Player::calculateOfflineEarnings(double secondsOffline) const {
         }
     }
     return totalOfflineEarnings;
+}
+
+bool Player::canPrestige() const {
+    if (wallet.getMoney() < 7000000.0) return false;
+
+    if (businesses.empty()) return false;
+    const auto& lastBusiness = businesses.back();
+
+    if (lastBusiness->getName() == "Creveti" && lastBusiness->isOwned() && lastBusiness->getLevel() >= 25) {
+        return true;
+    }
+
+    return false;
+}
+
+int Player::calculatePrestigeGold() const {
+    if (wallet.getMoney() < 7000000.0) return 0;
+    return static_cast<int>(wallet.getMoney() / 3500000.0);
+}
+
+int Player::prestige() {
+    if (!canPrestige()) return 0;
+
+    int goldGained = calculatePrestigeGold();
+    gold += goldGained;
+
+    wallet = Wallet(0.0);
+    for (auto& b : businesses) {
+        b->reset();
+    }
+
+    return goldGained;
 }

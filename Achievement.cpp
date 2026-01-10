@@ -1,5 +1,6 @@
 #include "Achievement.h"
 #include <iostream>
+#include <utility>
 
 Achievement::Achievement(std::string name, std::string desc, double reward, AchievementType type, double target)
     : name(std::move(name)), description(std::move(desc)), unlocked(false),

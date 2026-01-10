@@ -18,7 +18,6 @@
 #define COLOR_GRAY      sf::Color(128, 128, 128)
 
 Application::Application() {
-    // Increased window height to accommodate 6 businesses
     window.create(sf::VideoMode({1000, 900}), "Capital Empire - Ultimate Edition");
     window.setFramerateLimit(60);
 
@@ -90,7 +89,7 @@ void Application::initMenuUI() {
     menuButtons.clear();
 
     Button newGameBtn;
-    newGameBtn.rect = sf::FloatRect({350, 250}, {300, 80});
+    newGameBtn.rect = sf::FloatRect({350, 200}, {300, 80});
     newGameBtn.text = "NEW GAME";
     newGameBtn.color = COLOR_GREEN;
     newGameBtn.type = Button::NEW_GAME;
@@ -100,7 +99,7 @@ void Application::initMenuUI() {
 
     if (Game::saveFileExists()) {
         Button loadGameBtn;
-        loadGameBtn.rect = sf::FloatRect({350, 350}, {300, 80});
+        loadGameBtn.rect = sf::FloatRect({350, 300}, {300, 80});
         loadGameBtn.text = "LOAD GAME";
         loadGameBtn.color = COLOR_BLUE;
         loadGameBtn.type = Button::LOAD_GAME;
@@ -110,13 +109,30 @@ void Application::initMenuUI() {
     }
 
     Button achBtn;
-    achBtn.rect = sf::FloatRect({350, 450}, {300, 80});
+    achBtn.rect = sf::FloatRect({350, 400}, {300, 80});
     achBtn.text = "ACHIEVEMENTS";
     achBtn.color = COLOR_ACCENT;
     achBtn.type = Button::SHOW_ACHIEVEMENTS;
     achBtn.businessIndex = -1;
     achBtn.isPressed = false;
     menuButtons.push_back(achBtn);
+
+    // Prestige Button
+    Button prestigeBtn;
+    prestigeBtn.rect = sf::FloatRect({350, 500}, {300, 80});
+    prestigeBtn.text = "PRESTIGE";
+
+    if (game->getPlayer().canPrestige()) {
+        prestigeBtn.color = COLOR_ACCENT; // Gold color
+        prestigeBtn.text += "\n(Ready!)";
+    } else {
+        prestigeBtn.color = COLOR_GRAY;
+    }
+
+    prestigeBtn.type = Button::PRESTIGE;
+    prestigeBtn.businessIndex = -1;
+    prestigeBtn.isPressed = false;
+    menuButtons.push_back(prestigeBtn);
 }
 
 void Application::initAchievementUI() {
@@ -126,7 +142,7 @@ void Application::initAchievementUI() {
     backBtn.text = "BACK";
     backBtn.color = COLOR_RED;
     backBtn.type = Button::BACK;
-    backBtn.businessIndex = -1;
+    backBtn.businessIndex = -1; // Initialized
     backBtn.isPressed = false;
     achievementButtons.push_back(backBtn);
 }
@@ -222,6 +238,7 @@ bool Application::isButtonClicked(Button& btn, const sf::Vector2i& mousePos) {
     } else if (!sf::Mouse::isButtonPressed(sf::Mouse::Button::Left)) {
         if (btn.isPressed && hover) {
             btn.isPressed = false;
+            // Removed click sound from here to play it selectively
             return true;
         }
         btn.isPressed = false;
@@ -249,6 +266,17 @@ void Application::updateMenu(float dt) {
     sf::Vector2i mousePos = sf::Mouse::getPosition(window);
 
     for (auto& btn : menuButtons) {
+        // Update Prestige button state dynamically
+        if (btn.type == Button::PRESTIGE) {
+            if (game->getPlayer().canPrestige()) {
+                btn.color = COLOR_ACCENT;
+                btn.text = "PRESTIGE\n(Ready!)";
+            } else {
+                btn.color = COLOR_GRAY;
+                btn.text = "PRESTIGE\n(Locked)";
+            }
+        }
+
         if (isButtonClicked(btn, mousePos)) {
             if (clickSound.has_value()) clickSound->play();
 
@@ -274,6 +302,19 @@ void Application::updateMenu(float dt) {
             } else if (btn.type == Button::SHOW_ACHIEVEMENTS) {
                 currentState = AppState::ACHIEVEMENTS;
                 stateTransitionTimer = 0.2f;
+            } else if (btn.type == Button::PRESTIGE) {
+                if (game->getPlayer().canPrestige()) {
+                    int gold = game->getPlayer().prestige();
+                    game->saveGame(); // Save the reset state
+                    initGameUI(); // Re-init UI for reset game
+                    // Stay in menu or go to game? Let's go to game to see the reset
+                    currentState = AppState::GAME;
+                    stateTransitionTimer = 0.5f;
+                    spawnFloatingText("PRESTIGE! +" + std::to_string(gold) + " Gold", 500, 300, COLOR_ACCENT);
+                    if (achievementSound.has_value()) achievementSound->play(); // Play achievement sound for prestige
+                } else {
+                    if (errorSound.has_value()) errorSound->play();
+                }
             }
         }
     }
@@ -354,6 +395,7 @@ void Application::updateGameInput() {
 void Application::handleButtonClick(const Button& btn) {
     try {
         if (btn.type == Button::SAVE_EXIT) {
+            // This case is now removed from UI but kept in logic just in case
             if (clickSound.has_value()) clickSound->play();
             game->saveGame();
             window.close();
@@ -481,7 +523,7 @@ void Application::draw() {
 }
 
 void Application::drawMenu() {
-    drawText("Capital Empire", 350, 150, 50, COLOR_ACCENT);
+    drawText("Capital Empire", 350, 100, 50, COLOR_ACCENT); // Moved title up to y=100
 
     for (const auto& btn : menuButtons) {
         drawButton(btn);
@@ -535,6 +577,10 @@ void Application::drawGameHeader() {
     std::string moneyStr = "$" + std::to_string((long long)game->getPlayer().getMoney());
     int moneyWidth = getTextWidth(moneyStr, 50);
     drawText(moneyStr, 980 - moneyWidth, 25, 50, COLOR_ACCENT);
+
+    // Draw Gold in bottom left
+    std::string goldStr = "Gold: " + std::to_string(game->getPlayer().getGold());
+    drawText(goldStr, 20, 850, 30, COLOR_ACCENT); // Moved to bottom left
 }
 
 void Application::drawGameBusinesses() {

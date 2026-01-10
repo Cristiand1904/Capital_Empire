@@ -7,7 +7,7 @@
 #include <algorithm>
 #include <fstream>
 #include <filesystem>
-#include <ctime> // For time manipulation
+#include <ctime>
 
 Game::Game(const std::string& playerName, double initialMoney)
     : player(playerName, initialMoney), offlineEarnings(0.0) {
@@ -38,6 +38,7 @@ void Game::saveGame(const std::string& filename) const {
     outFile << now << "\n";
 
     outFile << player.getMoney() << "\n";
+    outFile << player.getGold() << "\n";
 
     const auto& businesses = player.getBusinesses();
     outFile << businesses.size() << "\n";
@@ -73,6 +74,14 @@ bool Game::loadGame(const std::string& filename) {
     double money;
     inFile >> money;
     player.setMoney(money);
+
+    int gold;
+    if (inFile >> gold) {
+        player.setGold(gold);
+    } else {
+        player.setGold(0);
+        inFile.clear();
+    }
 
     int businessCount;
     inFile >> businessCount;
