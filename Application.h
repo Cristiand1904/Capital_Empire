@@ -15,7 +15,6 @@ private:
     sf::Font font;
     sf::Clock clock;
 
-    // Audio
     sf::Music bgMusic;
     sf::SoundBuffer clickBuffer;
     std::optional<sf::Sound> clickSound;
@@ -35,7 +34,7 @@ private:
         std::string text;
         sf::Color color;
         int businessIndex;
-        enum Type { BUY, UPGRADE, MANAGER, START, NEW_GAME, LOAD_GAME, SAVE_EXIT, RESET, SHOW_ACHIEVEMENTS, BACK, MAIN_MENU } type;
+        enum Type { BUY, UPGRADE, MANAGER, START, NEW_GAME, LOAD_GAME, SAVE_EXIT, RESET, SHOW_ACHIEVEMENTS, BACK, MAIN_MENU, PRESTIGE } type;
         bool isPressed;
     };
     std::vector<Button> gameButtons;
