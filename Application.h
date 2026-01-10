@@ -1,10 +1,12 @@
 #pragma once
 #include <SFML/Graphics.hpp>
+#include <SFML/Audio.hpp>
 #include "Game.h"
 #include <memory>
 #include <vector>
 #include <string>
 #include <deque>
+#include <optional>
 
 class Application {
 private:
@@ -12,6 +14,17 @@ private:
     sf::RenderWindow window;
     sf::Font font;
     sf::Clock clock;
+
+    // Audio
+    sf::Music bgMusic;
+    sf::SoundBuffer clickBuffer;
+    std::optional<sf::Sound> clickSound;
+    sf::SoundBuffer cashBuffer;
+    std::optional<sf::Sound> cashSound;
+    sf::SoundBuffer errorBuffer;
+    std::optional<sf::Sound> errorSound;
+    sf::SoundBuffer achievementBuffer;
+    std::optional<sf::Sound> achievementSound;
 
     enum class AppState { MENU, GAME, ACHIEVEMENTS };
     AppState currentState;
@@ -47,6 +60,7 @@ private:
     void initMenuUI();
     void initGameUI();
     void initAchievementUI();
+    void initAudio();
 
     void update(float dt);
     void draw();
