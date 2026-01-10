@@ -34,7 +34,6 @@ void Game::saveGame(const std::string& filename) const {
         return;
     }
 
-    // Save current timestamp
     std::time_t now = std::time(nullptr);
     outFile << now << "\n";
 
@@ -94,7 +93,6 @@ bool Game::loadGame(const std::string& filename) {
         businesses[i]->setUpgradeCost(upgradeCost);
 
         if (owned) {
-            businesses[i]->unlock();
             if (hasManager) {
                 businesses[i]->hireManager();
                 for (int j = 1; j < managerLevel; ++j) {
@@ -117,13 +115,11 @@ bool Game::loadGame(const std::string& filename) {
 
     inFile.close();
 
-    // Calculate offline earnings
     std::time_t now = std::time(nullptr);
     double secondsOffline = std::difftime(now, savedTime);
 
     if (secondsOffline > 0) {
         double earnings = player.calculateOfflineEarnings(secondsOffline);
-        // Apply 50% penalty
         offlineEarnings = earnings * 0.5;
         if (offlineEarnings > 0) {
             player.setMoney(player.getMoney() + offlineEarnings);

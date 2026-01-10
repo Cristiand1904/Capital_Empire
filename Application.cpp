@@ -34,11 +34,51 @@ Application::Application() {
         }
     }
 
+    initAudio();
+
     currentState = AppState::MENU;
     stateTransitionTimer = 0.0f;
 
     game = std::make_unique<Game>("Capitalist", 0.0);
     initUI();
+}
+
+void Application::initAudio() {
+    if (!bgMusic.openFromFile("music.mp3")) {
+        std::cerr << "Failed to load music.mp3\n";
+    } else {
+        bgMusic.setLooping(true);
+        bgMusic.setVolume(0.5);
+        bgMusic.play();
+    }
+
+    if (!clickBuffer.loadFromFile("click.wav")) {
+        std::cerr << "Failed to load click.wav\n";
+    } else {
+        clickSound.emplace(clickBuffer);
+        clickSound->setVolume(3);
+    }
+
+    if (!cashBuffer.loadFromFile("cash.mp3")) {
+        std::cerr << "Failed to load cash.mp3\n";
+    } else {
+        cashSound.emplace(cashBuffer);
+        cashSound->setVolume(3);
+    }
+
+    if (!errorBuffer.loadFromFile("error.wav")) {
+        std::cerr << "Failed to load error.wav\n";
+    } else {
+        errorSound.emplace(errorBuffer);
+        errorSound->setVolume(3);
+    }
+
+    if (!achievementBuffer.loadFromFile("achievement.wav")) {
+        std::cerr << "Failed to load achievement.wav\n";
+    } else {
+        achievementSound.emplace(achievementBuffer);
+        achievementSound->setVolume(3);
+    }
 }
 
 void Application::initUI() {
@@ -54,7 +94,7 @@ void Application::initMenuUI() {
     newGameBtn.text = "NEW GAME";
     newGameBtn.color = COLOR_GREEN;
     newGameBtn.type = Button::NEW_GAME;
-    newGameBtn.businessIndex = -1; // Initialized
+    newGameBtn.businessIndex = -1;
     newGameBtn.isPressed = false;
     menuButtons.push_back(newGameBtn);
 
@@ -64,7 +104,7 @@ void Application::initMenuUI() {
         loadGameBtn.text = "LOAD GAME";
         loadGameBtn.color = COLOR_BLUE;
         loadGameBtn.type = Button::LOAD_GAME;
-        loadGameBtn.businessIndex = -1; // Initialized
+        loadGameBtn.businessIndex = -1;
         loadGameBtn.isPressed = false;
         menuButtons.push_back(loadGameBtn);
     }
@@ -74,7 +114,7 @@ void Application::initMenuUI() {
     achBtn.text = "ACHIEVEMENTS";
     achBtn.color = COLOR_ACCENT;
     achBtn.type = Button::SHOW_ACHIEVEMENTS;
-    achBtn.businessIndex = -1; // Initialized
+    achBtn.businessIndex = -1;
     achBtn.isPressed = false;
     menuButtons.push_back(achBtn);
 }
@@ -86,7 +126,7 @@ void Application::initAchievementUI() {
     backBtn.text = "BACK";
     backBtn.color = COLOR_RED;
     backBtn.type = Button::BACK;
-    backBtn.businessIndex = -1; // Initialized
+    backBtn.businessIndex = -1;
     backBtn.isPressed = false;
     achievementButtons.push_back(backBtn);
 }
@@ -96,15 +136,6 @@ void Application::initGameUI() {
     for(int i=0; i<6; ++i) {
         createBusinessUI(i, 120 + i * 120);
     }
-
-    Button saveBtn;
-    saveBtn.rect = sf::FloatRect({820, 20}, {160, 50});
-    saveBtn.text = "SAVE & EXIT";
-    saveBtn.color = COLOR_RED;
-    saveBtn.type = Button::SAVE_EXIT;
-    saveBtn.businessIndex = -1;
-    saveBtn.isPressed = false;
-    gameButtons.push_back(saveBtn);
 
     Button menuBtn;
     menuBtn.rect = sf::FloatRect({140, 20}, {100, 50});
@@ -158,6 +189,9 @@ void Application::run() {
     while (window.isOpen()) {
         while (const std::optional event = window.pollEvent()) {
             if (event->is<sf::Event::Closed>()) {
+                if (currentState == AppState::GAME) {
+                    game->saveGame();
+                }
                 window.close();
             }
             if (event->is<sf::Event::KeyPressed>()) {
@@ -216,6 +250,8 @@ void Application::updateMenu(float dt) {
 
     for (auto& btn : menuButtons) {
         if (isButtonClicked(btn, mousePos)) {
+            if (clickSound.has_value()) clickSound->play();
+
             if (btn.type == Button::NEW_GAME) {
                 game = std::make_unique<Game>("Capitalist", 0.0);
                 initGameUI();
@@ -227,6 +263,13 @@ void Application::updateMenu(float dt) {
                     initGameUI();
                     currentState = AppState::GAME;
                     stateTransitionTimer = 0.5f;
+
+                    double offline = game->getOfflineEarnings();
+                    if (offline > 0) {
+                        spawnFloatingText("Welcome Back! Offline Earnings: $" + std::to_string((long long)offline), 500, 450, COLOR_GREEN);
+                        if (cashSound.has_value()) cashSound->play();
+                        game->resetOfflineEarnings();
+                    }
                 }
             } else if (btn.type == Button::SHOW_ACHIEVEMENTS) {
                 currentState = AppState::ACHIEVEMENTS;
@@ -241,6 +284,8 @@ void Application::updateAchievements(float dt) {
     sf::Vector2i mousePos = sf::Mouse::getPosition(window);
     for (auto& btn : achievementButtons) {
         if (isButtonClicked(btn, mousePos)) {
+            if (clickSound.has_value()) clickSound->play();
+
             if (btn.type == Button::BACK) {
                 currentState = AppState::MENU;
                 stateTransitionTimer = 0.2f;
@@ -283,6 +328,9 @@ void Application::updateGameNotifications(float dt) {
     std::vector<std::string> newNotifications = game->update(dt);
     for (const auto& msg : newNotifications) {
         notifications.push_back({msg, 3.0f});
+        if (msg.find("ACHIEVEMENT:") == 0) {
+            if (achievementSound.has_value()) achievementSound->play();
+        }
     }
 
     if (!notifications.empty()) {
@@ -306,20 +354,24 @@ void Application::updateGameInput() {
 void Application::handleButtonClick(const Button& btn) {
     try {
         if (btn.type == Button::SAVE_EXIT) {
+            if (clickSound.has_value()) clickSound->play();
             game->saveGame();
             window.close();
         } else if (btn.type == Button::RESET) {
+            if (clickSound.has_value()) clickSound->play();
             if (Game::saveFileExists()) {
                 std::filesystem::remove("savegame.txt");
             }
             game = std::make_unique<Game>("Capitalist", 0.0);
             notifications.push_back({"GAME RESET!", 2.0f});
         } else if (btn.type == Button::MAIN_MENU) {
+            if (clickSound.has_value()) clickSound->play();
             game->saveGame();
             currentState = AppState::MENU;
             stateTransitionTimer = 0.2f;
             initMenuUI();
         } else if (btn.type == Button::START) {
+            if (clickSound.has_value()) clickSound->play();
             game->getPlayer().startBusinessProduction(btn.businessIndex);
             spawnFloatingText("Working...", 100, 140 + btn.businessIndex * 120, COLOR_WHITE);
         } else if (btn.type == Button::UPGRADE) {
@@ -328,9 +380,11 @@ void Application::handleButtonClick(const Button& btn) {
                 if (businesses[btn.businessIndex]->isOwned()) {
                     game->getPlayer().upgradeBusiness(btn.businessIndex);
                     spawnFloatingText("Upgraded!", 750, 140 + btn.businessIndex * 120, COLOR_GREEN);
+                    if (cashSound.has_value()) cashSound->play();
                 } else {
                     game->getPlayer().purchaseBusiness(btn.businessIndex);
                     spawnFloatingText("Purchased!", 750, 140 + btn.businessIndex * 120, COLOR_GREEN);
+                    if (cashSound.has_value()) cashSound->play();
                 }
             }
         } else if (btn.type == Button::MANAGER) {
@@ -338,14 +392,17 @@ void Application::handleButtonClick(const Button& btn) {
             if (businesses[btn.businessIndex]->hasManagerHired()) {
                 game->getPlayer().upgradeManager(btn.businessIndex);
                 spawnFloatingText("Manager Upgraded!", 680, 140 + btn.businessIndex * 120, COLOR_BLUE);
+                if (cashSound.has_value()) cashSound->play();
             } else {
                 game->getPlayer().hireManager(btn.businessIndex);
                 spawnFloatingText("Manager Hired!", 680, 140 + btn.businessIndex * 120, COLOR_BLUE);
+                if (cashSound.has_value()) cashSound->play();
             }
         }
     } catch (const std::exception& e) {
         std::cout << "Eroare: " << e.what() << std::endl;
         spawnFloatingText("Error!", 500, 375, COLOR_RED);
+        if (errorSound.has_value()) errorSound->play();
     }
 }
 
@@ -477,7 +534,7 @@ void Application::drawGameHeader() {
 
     std::string moneyStr = "$" + std::to_string((long long)game->getPlayer().getMoney());
     int moneyWidth = getTextWidth(moneyStr, 50);
-    drawText(moneyStr, 780 - moneyWidth, 25, 50, COLOR_ACCENT);
+    drawText(moneyStr, 980 - moneyWidth, 25, 50, COLOR_ACCENT);
 }
 
 void Application::drawGameBusinesses() {
