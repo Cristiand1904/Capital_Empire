@@ -78,10 +78,8 @@ public:
     void setPrestigeGoldBonus(double val) { prestigeGoldBonus = val; }
 
     void activateTempBoost(double duration, double multiplier);
-    // [maybe unused]
-    double getTempBoostTimer() const { return tempBoostTimer; }
-    // [maybe unused]
-    void setTempBoostTimer(double t) { tempBoostTimer = t; }
+    double getTempBoostTimer() const { return tempBoostTimer; } //[maybe unused]
+    void setTempBoostTimer(double t) { tempBoostTimer = t; } //[maybe unused]
 
     double getGlobalProfitMultiplier() const { return globalProfitMultiplier; }
     double getGlobalDiscount() const { return globalDiscount; }
