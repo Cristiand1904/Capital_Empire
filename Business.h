@@ -37,8 +37,8 @@ public:
 
     virtual ~Business() = default;
 
-    virtual std::unique_ptr<Business> clone() const = 0;
-    virtual double calculateRevenue(double bonusMultiplier) const = 0;
+    [[nodiscard]] virtual std::unique_ptr<Business> clone() const = 0;
+    [[nodiscard]] virtual double calculateRevenue(double bonusMultiplier) const = 0;
 
     double update(double deltaTime);
     void startProduction();
@@ -57,21 +57,21 @@ public:
     void setProfit(double p);
     void setUpgradeCost(double c);
 
-    bool isOwned() const;
-    bool hasManagerHired() const;
-    const std::string& getName() const;
-    int getLevel() const;
-    double getProfitPerCycle() const;
-    double getUpgradeCost() const;
-    double getPurchaseCost() const;
-    double getManagerCost() const;
-    double getManagerUpgradeCost() const;
+    [[nodiscard]] bool isOwned() const;
+    [[nodiscard]] bool hasManagerHired() const;
+    [[nodiscard]] const std::string& getName() const;
+    [[nodiscard]] int getLevel() const;
+    [[nodiscard]] double getProfitPerCycle() const;
+    [[nodiscard]] double getUpgradeCost() const;
+    [[nodiscard]] double getPurchaseCost() const;
+    [[nodiscard]] double getManagerCost() const;
+    [[nodiscard]] double getManagerUpgradeCost() const;
 
-    double getProgress() const;
-    double getProductionTime() const;
-    bool isActive() const;
+    [[nodiscard]] double getProgress() const;
+    [[nodiscard]] double getProductionTime() const;
+    [[nodiscard]] bool isActive() const;
 
-    int getManagerLevel() const;
+    [[nodiscard]] int getManagerLevel() const;
 
     friend void swap(Business& first, Business& second) noexcept;
     friend std::ostream& operator<<(std::ostream& os, const Business& b);

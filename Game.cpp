@@ -9,7 +9,7 @@
 #include <filesystem>
 #include <ctime>
 
-Game::Game(const std::string& playerName, double initialMoney)
+Game::Game(const std::string& playerName, const double initialMoney)
     : player(playerName, initialMoney), offlineEarnings(0.0) {
     setupBusinesses();
 }

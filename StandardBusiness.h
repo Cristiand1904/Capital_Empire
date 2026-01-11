@@ -20,6 +20,6 @@ protected:
 public:
     StandardBusiness(std::string name, BusinessType type, double profit, double upgrade, double cost, double time, double mngCost = 0);
 
-    std::unique_ptr<Business> clone() const override;
-    double calculateRevenue(double bonusMultiplier) const override;
+    [[nodiscard]] std::unique_ptr<Business> clone() const override;
+    [[nodiscard]] double calculateRevenue(double bonusMultiplier) const override;
 };

@@ -10,10 +10,10 @@ private:
 public:
     Manager(std::string name, double cost);
 
-    const std::string& getName() const;
-    double getCost() const;
-    int getLevel() const;
+    [[nodiscard]] const std::string& getName() const;
+    [[nodiscard]] double getCost() const;
+    [[nodiscard]] int getLevel() const;
 
     void upgrade();
-    double getDiscountFactor() const;
+    [[nodiscard]] double getDiscountFactor() const;
 };

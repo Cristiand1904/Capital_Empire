@@ -8,7 +8,7 @@ private:
 public:
     explicit Wallet(double initialMoney = 0.0);
 
-    double getMoney() const;
+    [[nodiscard]] double getMoney() const;
     void addMoney(double amount);
     void spendMoney(double amount);
 };
