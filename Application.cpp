@@ -98,6 +98,7 @@ void Application::initMenuUI() {
     newGameBtn.color = COLOR_GREEN;
     newGameBtn.type = Button::NEW_GAME;
     newGameBtn.businessIndex = -1;
+    newGameBtn.upgradeId = -1;
     newGameBtn.isPressed = false;
     menuButtons.push_back(newGameBtn);
 
@@ -108,6 +109,7 @@ void Application::initMenuUI() {
         loadGameBtn.color = COLOR_BLUE;
         loadGameBtn.type = Button::LOAD_GAME;
         loadGameBtn.businessIndex = -1;
+        loadGameBtn.upgradeId = -1;
         loadGameBtn.isPressed = false;
         menuButtons.push_back(loadGameBtn);
     }
@@ -118,6 +120,7 @@ void Application::initMenuUI() {
     achBtn.color = COLOR_ACCENT;
     achBtn.type = Button::SHOW_ACHIEVEMENTS;
     achBtn.businessIndex = -1;
+    achBtn.upgradeId = -1;
     achBtn.isPressed = false;
     menuButtons.push_back(achBtn);
 }
@@ -130,6 +133,7 @@ void Application::initAchievementUI() {
     backBtn.color = COLOR_RED;
     backBtn.type = Button::BACK;
     backBtn.businessIndex = -1;
+    backBtn.upgradeId = -1;
     backBtn.isPressed = false;
     achievementButtons.push_back(backBtn);
 }
@@ -142,28 +146,29 @@ void Application::initGoldShopUI() {
     backBtn.color = COLOR_RED;
     backBtn.type = Button::BACK;
     backBtn.businessIndex = -1;
+    backBtn.upgradeId = -1;
     backBtn.isPressed = false;
     goldShopButtons.push_back(backBtn);
 
     struct UpgradeInfo {
         std::string text;
-        int cost;
+        sf::Color color;
     };
 
     UpgradeInfo upgrades[] = {
-        {"Profit x2 (5 Gold)", 5},
-        {"Discount 10% (10 Gold)", 10},
-        {"Speed +10% (15 Gold)", 15},
-        {"Small Biz Bonus +25% (3 Gold)", 3},
-        {"Lemonade Mastery x10 (5 Gold)", 5},
-        {"Corp Tax Cut +50% (8 Gold)", 8},
-        {"Headhunter -50% Mng (12 Gold)", 12},
-        {"Night Shift 80% Off (20 Gold)", 20},
-        {"Bulk Buying -20% Upg (25 Gold)", 25},
-        {"Automation Speed +20% (30 Gold)", 30},
-        {"Golden Touch +10% Prestige (40 Gold)", 40},
-        {"Market Monopoly x5 (50 Gold)", 50},
-        {"Ocean King Shrimp x5 (60 Gold)", 60}
+        {"Profit x2 (5 Gold)", COLOR_GREEN},
+        {"Discount 10% (10 Gold)", COLOR_BLUE},
+        {"Speed +10% (15 Gold)", COLOR_ACCENT},
+        {"Small Biz Bonus +25% (3 Gold)", COLOR_GREEN},
+        {"Lemonade Mastery x10 (5 Gold)", COLOR_ACCENT},
+        {"Corp Tax Cut +50% (8 Gold)", COLOR_GREEN},
+        {"Headhunter -50% Mng (12 Gold)", COLOR_BLUE},
+        {"Night Shift 80% Off (20 Gold)", COLOR_ACCENT},
+        {"Bulk Buying -20% Upg (25 Gold)", COLOR_BLUE},
+        {"Automation Speed +20% (30 Gold)", COLOR_ACCENT},
+        {"Golden Touch +10% Prestige (40 Gold)", COLOR_ACCENT},
+        {"Market Monopoly x5 (50 Gold)", COLOR_GREEN},
+        {"Ocean King Shrimp x5 (60 Gold)", COLOR_ACCENT}
     };
 
     for (int i = 0; i < 13; ++i) {
@@ -173,7 +178,7 @@ void Application::initGoldShopUI() {
 
         btn.rect = sf::FloatRect({x, y}, {430, 60});
         btn.text = upgrades[i].text;
-        btn.color = COLOR_GRAY;
+        btn.color = upgrades[i].color;
         btn.type = Button::BUY_GOLD_UPGRADE;
         btn.upgradeId = i + 1;
         btn.businessIndex = -1;
@@ -190,6 +195,7 @@ void Application::initWheelUI() {
     backBtn.color = COLOR_RED;
     backBtn.type = Button::BACK;
     backBtn.businessIndex = -1;
+    backBtn.upgradeId = -1;
     backBtn.isPressed = false;
     wheelButtons.push_back(backBtn);
 
@@ -199,6 +205,7 @@ void Application::initWheelUI() {
     spinBtn.color = COLOR_ACCENT;
     spinBtn.type = Button::SPIN_WHEEL;
     spinBtn.businessIndex = -1;
+    spinBtn.upgradeId = -1;
     spinBtn.isPressed = false;
     wheelButtons.push_back(spinBtn);
 }
@@ -215,6 +222,7 @@ void Application::initGameUI() {
     menuBtn.color = COLOR_GRAY;
     menuBtn.type = Button::MAIN_MENU;
     menuBtn.businessIndex = -1;
+    menuBtn.upgradeId = -1;
     menuBtn.isPressed = false;
     gameButtons.push_back(menuBtn);
 
@@ -224,6 +232,7 @@ void Application::initGameUI() {
     resetBtn.color = COLOR_BLUE;
     resetBtn.type = Button::RESET;
     resetBtn.businessIndex = -1;
+    resetBtn.upgradeId = -1;
     resetBtn.isPressed = false;
     gameButtons.push_back(resetBtn);
 
@@ -237,6 +246,7 @@ void Application::initGameUI() {
     goldShopBtn.color = COLOR_ACCENT;
     goldShopBtn.type = Button::SHOW_GOLD_SHOP;
     goldShopBtn.businessIndex = -1;
+    goldShopBtn.upgradeId = -1;
     goldShopBtn.isPressed = false;
     gameButtons.push_back(goldShopBtn);
 
@@ -246,6 +256,7 @@ void Application::initGameUI() {
     wheelBtn.color = COLOR_RED;
     wheelBtn.type = Button::SHOW_LUCKY_WHEEL;
     wheelBtn.businessIndex = -1;
+    wheelBtn.upgradeId = -1;
     wheelBtn.isPressed = false;
     gameButtons.push_back(wheelBtn);
 
@@ -255,6 +266,7 @@ void Application::initGameUI() {
     prestigeBtn.color = COLOR_GRAY;
     prestigeBtn.type = Button::PRESTIGE;
     prestigeBtn.businessIndex = -1;
+    prestigeBtn.upgradeId = -1;
     prestigeBtn.isPressed = false;
     gameButtons.push_back(prestigeBtn);
 }
@@ -266,6 +278,7 @@ void Application::createBusinessUI(int index, float yPos) {
     startBtn.color = COLOR_ACCENT;
     startBtn.type = Button::START;
     startBtn.businessIndex = index;
+    startBtn.upgradeId = -1;
     startBtn.isPressed = false;
     gameButtons.push_back(startBtn);
 
@@ -275,6 +288,7 @@ void Application::createBusinessUI(int index, float yPos) {
     buyBtn.color = COLOR_ACCENT;
     buyBtn.type = Button::UPGRADE;
     buyBtn.businessIndex = index;
+    buyBtn.upgradeId = -1;
     buyBtn.isPressed = false;
     gameButtons.push_back(buyBtn);
 
@@ -284,6 +298,7 @@ void Application::createBusinessUI(int index, float yPos) {
     mngBtn.color = COLOR_BLUE;
     mngBtn.type = Button::MANAGER;
     mngBtn.businessIndex = index;
+    mngBtn.upgradeId = -1;
     mngBtn.isPressed = false;
     gameButtons.push_back(mngBtn);
 }
