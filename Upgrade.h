@@ -11,9 +11,9 @@ private:
 public:
     explicit Upgrade(double c = 0, double m = 1.0);
 
-    bool isPurchased() const;
-    double getMultiplier() const;
-    double getCost() const;
+    [[nodiscard]] bool isPurchased() const;
+    [[nodiscard]] double getMultiplier() const;
+    [[nodiscard]] double getCost() const;
 
     friend std::ostream& operator<<(std::ostream& os, const Upgrade& u);
 };
