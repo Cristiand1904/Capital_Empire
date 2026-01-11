@@ -7,7 +7,12 @@
 #include <cmath>
 
 Player::Player(const std::string& name, double money)
-    : name(name), wallet(money), gold(0) {
+    : name(name), wallet(money), gold(0),
+      globalProfitMultiplier(1.0), globalDiscount(0.0), globalSpeedMultiplier(1.0),
+      lemonadeMultiplier(1.0), shrimpMultiplier(1.0), managerCostDiscount(0.0),
+      offlineEarningsRatio(0.5), prestigeGoldBonus(0.0),
+      tempBoostTimer(0.0), tempBoostMultiplier(1.0),
+      goldUpgradesOwned(14, false) {
     initAchievements();
 }
 
@@ -21,7 +26,18 @@ void Player::initAchievements() {
 }
 
 Player::Player(const Player& other)
-    : name(other.name), wallet(other.wallet), gold(other.gold), achievements(other.achievements) {
+    : name(other.name), wallet(other.wallet), gold(other.gold), achievements(other.achievements),
+      globalProfitMultiplier(other.globalProfitMultiplier),
+      globalDiscount(other.globalDiscount),
+      globalSpeedMultiplier(other.globalSpeedMultiplier),
+      lemonadeMultiplier(other.lemonadeMultiplier),
+      shrimpMultiplier(other.shrimpMultiplier),
+      managerCostDiscount(other.managerCostDiscount),
+      offlineEarningsRatio(other.offlineEarningsRatio),
+      prestigeGoldBonus(other.prestigeGoldBonus),
+      tempBoostTimer(other.tempBoostTimer),
+      tempBoostMultiplier(other.tempBoostMultiplier),
+      goldUpgradesOwned(other.goldUpgradesOwned) {
     businesses.reserve(other.businesses.size());
     for (const auto& b : other.businesses) {
         businesses.push_back(b->clone());
@@ -35,6 +51,17 @@ void swap(Player& first, Player& second) noexcept {
     swap(first.gold, second.gold);
     swap(first.businesses, second.businesses);
     swap(first.achievements, second.achievements);
+    swap(first.globalProfitMultiplier, second.globalProfitMultiplier);
+    swap(first.globalDiscount, second.globalDiscount);
+    swap(first.globalSpeedMultiplier, second.globalSpeedMultiplier);
+    swap(first.lemonadeMultiplier, second.lemonadeMultiplier);
+    swap(first.shrimpMultiplier, second.shrimpMultiplier);
+    swap(first.managerCostDiscount, second.managerCostDiscount);
+    swap(first.offlineEarningsRatio, second.offlineEarningsRatio);
+    swap(first.prestigeGoldBonus, second.prestigeGoldBonus);
+    swap(first.tempBoostTimer, second.tempBoostTimer);
+    swap(first.tempBoostMultiplier, second.tempBoostMultiplier);
+    swap(first.goldUpgradesOwned, second.goldUpgradesOwned);
 }
 
 Player& Player::operator=(Player other) {
@@ -67,10 +94,26 @@ void Player::unlockAchievement(const std::string& achievementName) {
 }
 
 std::vector<std::string> Player::update(double deltaTime) {
+    if (tempBoostTimer > 0) {
+        tempBoostTimer -= deltaTime;
+        if (tempBoostTimer < 0) tempBoostTimer = 0;
+    }
+
     double totalProfit = 0;
     for (const auto& b : businesses) {
         if (b->isOwned()) {
-            totalProfit += b->update(deltaTime);
+            double profit = b->update(deltaTime);
+
+            if (b->getName() == "Limonada") profit *= lemonadeMultiplier;
+            if (b->getName() == "Creveti") profit *= shrimpMultiplier;
+
+            profit *= globalProfitMultiplier;
+
+            if (tempBoostTimer > 0) {
+                profit *= tempBoostMultiplier;
+            }
+
+            totalProfit += profit;
         }
     }
     if (totalProfit > 0) {
@@ -114,7 +157,8 @@ void Player::purchaseBusiness(int index_int) {
     if (business->isOwned()) {
         throw BusinessAlreadyOwnedException(business->getName());
     }
-    const double cost = business->getPurchaseCost();
+    double cost = business->getPurchaseCost();
+    cost *= (1.0 - globalDiscount);
     wallet.spendMoney(cost);
     business->unlock();
 }
@@ -125,7 +169,8 @@ void Player::upgradeBusiness(int index_int) {
     if (!business->isOwned()) {
         throw BusinessNotOwnedException(business->getName());
     }
-    const double cost = business->getUpgradeCost();
+    double cost = business->getUpgradeCost();
+    cost *= (1.0 - globalDiscount);
     wallet.spendMoney(cost);
     business->levelUp();
 }
@@ -136,7 +181,10 @@ void Player::hireManager(int index_int) {
     if (!business->isOwned()) {
         throw BusinessNotOwnedException(business->getName());
     }
-    const double cost = business->getManagerCost();
+    double cost = business->getManagerCost();
+    cost *= (1.0 - globalDiscount);
+    cost *= (1.0 - managerCostDiscount);
+
     wallet.spendMoney(cost);
     business->hireManager();
 }
@@ -147,24 +195,53 @@ void Player::upgradeManager(int index_int) {
     if (!business->hasManagerHired()) {
         throw BusinessNotOwnedException(business->getName() + " Manager");
     }
-    const double cost = business->getManagerUpgradeCost();
+    double cost = business->getManagerUpgradeCost();
+    cost *= (1.0 - globalDiscount);
+    cost *= (1.0 - managerCostDiscount);
+
     wallet.spendMoney(cost);
     business->upgradeManager();
 }
 
-double Player::calculateOfflineEarnings(double secondsOffline) const {
+double Player::calculateOfflineEarnings(double secondsOffline) {
     double totalOfflineEarnings = 0.0;
+
+    double boostedTime = 0.0;
+    double normalTime = secondsOffline;
+
+    if (tempBoostTimer > 0) {
+        if (secondsOffline <= tempBoostTimer) {
+            boostedTime = secondsOffline;
+            normalTime = 0;
+            tempBoostTimer -= secondsOffline;
+        } else {
+            boostedTime = tempBoostTimer;
+            normalTime = secondsOffline - tempBoostTimer;
+            tempBoostTimer = 0;
+        }
+    }
+
     for (const auto& b : businesses) {
         if (b->isOwned() && b->hasManagerHired()) {
             double productionTime = b->getProductionTime();
             if (productionTime > 0) {
-                double cycles = secondsOffline / productionTime;
                 double profitPerCycle = b->getProfitPerCycle();
-                totalOfflineEarnings += cycles * profitPerCycle;
+
+                if (b->getName() == "Limonada") profitPerCycle *= lemonadeMultiplier;
+                if (b->getName() == "Creveti") profitPerCycle *= shrimpMultiplier;
+
+                profitPerCycle *= globalProfitMultiplier;
+
+                double boostedCycles = boostedTime / productionTime;
+                double normalCycles = normalTime / productionTime;
+
+                totalOfflineEarnings += boostedCycles * profitPerCycle * tempBoostMultiplier;
+                totalOfflineEarnings += normalCycles * profitPerCycle;
             }
         }
     }
-    return totalOfflineEarnings;
+
+    return totalOfflineEarnings * (offlineEarningsRatio / 0.5);
 }
 
 bool Player::canPrestige() const {
@@ -182,7 +259,8 @@ bool Player::canPrestige() const {
 
 int Player::calculatePrestigeGold() const {
     if (wallet.getMoney() < 7000000.0) return 0;
-    return static_cast<int>(wallet.getMoney() / 3500000.0);
+    int baseGold = static_cast<int>(wallet.getMoney() / 3500000.0);
+    return static_cast<int>(baseGold * (1.0 + prestigeGoldBonus));
 }
 
 int Player::prestige() {
@@ -196,5 +274,38 @@ int Player::prestige() {
         b->reset();
     }
 
+    tempBoostTimer = 0;
+
     return goldGained;
+}
+
+void Player::addGlobalProfitMultiplier(double val) {
+    globalProfitMultiplier += val;
+}
+
+void Player::addGlobalDiscount(double val) {
+    globalDiscount += val;
+    if (globalDiscount > 0.9) globalDiscount = 0.9;
+}
+
+void Player::addGlobalSpeedMultiplier(double val) {
+    globalSpeedMultiplier += val;
+}
+
+void Player::activateTempBoost(double duration, double multiplier) {
+    tempBoostTimer += duration;
+    tempBoostMultiplier = multiplier;
+}
+
+bool Player::hasGoldUpgrade(int id) const {
+    if (id >= 0 && id < (int)goldUpgradesOwned.size()) {
+        return goldUpgradesOwned[id];
+    }
+    return false;
+}
+
+void Player::setGoldUpgradeOwned(int id, bool owned) {
+    if (id >= 0 && id < (int)goldUpgradesOwned.size()) {
+        goldUpgradesOwned[id] = owned;
+    }
 }

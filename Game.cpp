@@ -40,6 +40,22 @@ void Game::saveGame(const std::string& filename) const {
     outFile << player.getMoney() << "\n";
     outFile << player.getGold() << "\n";
 
+    outFile << player.getGlobalProfitMultiplier() << " "
+            << player.getGlobalDiscount() << " "
+            << player.getGlobalSpeedMultiplier() << " "
+            << player.getLemonadeMultiplier() << " "
+            << player.getShrimpMultiplier() << " "
+            << player.getManagerCostDiscount() << " "
+            << player.getOfflineEarningsRatio() << " "
+            << player.getPrestigeGoldBonus() << "\n";
+
+    const auto& ownedUpgrades = player.getGoldUpgradesOwned();
+    outFile << ownedUpgrades.size() << "\n";
+    for (bool owned : ownedUpgrades) {
+        outFile << owned << " ";
+    }
+    outFile << "\n";
+
     const auto& businesses = player.getBusinesses();
     outFile << businesses.size() << "\n";
     for (const auto& b : businesses) {
@@ -80,6 +96,37 @@ bool Game::loadGame(const std::string& filename) {
         player.setGold(gold);
     } else {
         player.setGold(0);
+        inFile.clear();
+    }
+
+    double profitMult, discount, speedMult;
+    double lemonadeMult, shrimpMult, managerDisc, offlineRatio, prestigeBonus;
+
+    if (inFile >> profitMult >> discount >> speedMult >> lemonadeMult >> shrimpMult >> managerDisc >> offlineRatio >> prestigeBonus) {
+        player.addGlobalProfitMultiplier(profitMult - player.getGlobalProfitMultiplier());
+        player.addGlobalDiscount(discount - player.getGlobalDiscount());
+        player.addGlobalSpeedMultiplier(speedMult - player.getGlobalSpeedMultiplier());
+
+        player.setLemonadeMultiplier(lemonadeMult);
+        player.setShrimpMultiplier(shrimpMult);
+        player.setManagerCostDiscount(managerDisc);
+        player.setOfflineEarningsRatio(offlineRatio);
+        player.setPrestigeGoldBonus(prestigeBonus);
+
+        size_t size;
+        if (inFile >> size) {
+            std::vector<bool> owned(size);
+            for (size_t i = 0; i < size; ++i) {
+                bool val;
+                inFile >> val;
+                owned[i] = val;
+            }
+            if (size < 14) {
+                owned.resize(14, false);
+            }
+            player.setGoldUpgradesOwned(owned);
+        }
+    } else {
         inFile.clear();
     }
 

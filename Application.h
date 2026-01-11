@@ -25,7 +25,7 @@ private:
     sf::SoundBuffer achievementBuffer;
     std::optional<sf::Sound> achievementSound;
 
-    enum class AppState { MENU, GAME, ACHIEVEMENTS };
+    enum class AppState { MENU, GAME, ACHIEVEMENTS, GOLD_SHOP, LUCKY_WHEEL };
     AppState currentState;
     float stateTransitionTimer;
 
@@ -34,12 +34,20 @@ private:
         std::string text;
         sf::Color color;
         int businessIndex;
-        enum Type { BUY, UPGRADE, MANAGER, START, NEW_GAME, LOAD_GAME, SAVE_EXIT, RESET, SHOW_ACHIEVEMENTS, BACK, MAIN_MENU, PRESTIGE } type;
+        enum Type {
+            BUY, UPGRADE, MANAGER, START, NEW_GAME, LOAD_GAME, SAVE_EXIT, RESET,
+            SHOW_ACHIEVEMENTS, BACK, MAIN_MENU, PRESTIGE,
+            SHOW_GOLD_SHOP, SHOW_LUCKY_WHEEL,
+            BUY_GOLD_UPGRADE, SPIN_WHEEL
+        } type;
         bool isPressed;
+        int upgradeId;
     };
     std::vector<Button> gameButtons;
     std::vector<Button> menuButtons;
     std::vector<Button> achievementButtons;
+    std::vector<Button> goldShopButtons;
+    std::vector<Button> wheelButtons;
 
     struct Notification {
         std::string text;
@@ -59,6 +67,8 @@ private:
     void initMenuUI();
     void initGameUI();
     void initAchievementUI();
+    void initGoldShopUI();
+    void initWheelUI();
     void initAudio();
 
     void update(float dt);
@@ -76,6 +86,12 @@ private:
 
     void updateAchievements(float dt);
     void drawAchievements();
+
+    void updateGoldShop(float dt);
+    void drawGoldShop();
+
+    void updateWheel(float dt);
+    void drawWheel();
 
     void drawGame();
     void drawGameHeader();
