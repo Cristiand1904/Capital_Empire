@@ -14,6 +14,21 @@ private:
     std::vector<std::unique_ptr<Business>> businesses;
     std::vector<Achievement> achievements;
 
+    double globalProfitMultiplier;
+    double globalDiscount;
+    double globalSpeedMultiplier;
+
+    double lemonadeMultiplier;
+    double shrimpMultiplier;
+    double managerCostDiscount;
+    double offlineEarningsRatio;
+    double prestigeGoldBonus;
+
+    double tempBoostTimer;
+    double tempBoostMultiplier;
+
+    std::vector<bool> goldUpgradesOwned;
+
     void initAchievements();
 
 public:
@@ -46,11 +61,40 @@ public:
     void hireManager(int index);
     void upgradeManager(int index);
 
-    double calculateOfflineEarnings(double secondsOffline) const;
+    double calculateOfflineEarnings(double secondsOffline);
 
     bool canPrestige() const;
     int calculatePrestigeGold() const;
     int prestige();
+
+    void addGlobalProfitMultiplier(double val);
+    void addGlobalDiscount(double val);
+    void addGlobalSpeedMultiplier(double val);
+
+    void setLemonadeMultiplier(double val) { lemonadeMultiplier = val; }
+    void setShrimpMultiplier(double val) { shrimpMultiplier = val; }
+    void setManagerCostDiscount(double val) { managerCostDiscount = val; }
+    void setOfflineEarningsRatio(double val) { offlineEarningsRatio = val; }
+    void setPrestigeGoldBonus(double val) { prestigeGoldBonus = val; }
+
+    void activateTempBoost(double duration, double multiplier);
+    double getTempBoostTimer() const { return tempBoostTimer; }
+    void setTempBoostTimer(double t) { tempBoostTimer = t; }
+
+    double getGlobalProfitMultiplier() const { return globalProfitMultiplier; }
+    double getGlobalDiscount() const { return globalDiscount; }
+    double getGlobalSpeedMultiplier() const { return globalSpeedMultiplier; }
+
+    double getLemonadeMultiplier() const { return lemonadeMultiplier; }
+    double getShrimpMultiplier() const { return shrimpMultiplier; }
+    double getManagerCostDiscount() const { return managerCostDiscount; }
+    double getOfflineEarningsRatio() const { return offlineEarningsRatio; }
+    double getPrestigeGoldBonus() const { return prestigeGoldBonus; }
+
+    bool hasGoldUpgrade(int id) const;
+    void setGoldUpgradeOwned(int id, bool owned);
+    const std::vector<bool>& getGoldUpgradesOwned() const { return goldUpgradesOwned; }
+    void setGoldUpgradesOwned(const std::vector<bool>& owned) { goldUpgradesOwned = owned; }
 
     friend void swap(Player& first, Player& second) noexcept;
 };
