@@ -1,4 +1,5 @@
 #pragma once
+#include <iostream>
 #include <string>
 
 class Manager {
@@ -16,4 +17,6 @@ public:
 
     void upgrade();
     [[nodiscard]] double getDiscountFactor() const;
+
+    friend std::ostream& operator<<(std::ostream& os, const Manager& m);
 };

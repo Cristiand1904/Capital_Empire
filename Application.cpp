@@ -1,9 +1,11 @@
 #include "Application.h"
-#include <iostream>
-#include <cmath>
+#include "Exceptions.h"
+#include <algorithm>
+#include <cstdint>
 #include <filesystem>
-#include <cstdint> // Added for std::uint8_t
-#include <random> // For random numbers
+#include <iostream>
+#include <sstream>
+#include <utility>
 
 #define COLOR_BG        sf::Color(30, 30, 35)
 #define COLOR_PANEL     sf::Color(50, 50, 55)
@@ -18,7 +20,10 @@
 #define COLOR_WHITE     sf::Color::White
 #define COLOR_GRAY      sf::Color(128, 128, 128)
 
-Application::Application() {
+Application::Application()
+    : currentState(AppState::MENU), stateTransitionTimer(0.0f),
+      wheelSpinTimer(0.0f), wheelIsSpinning(false), wheelResultText("SPIN TO WIN!"),
+      randomEngine(std::random_device{}()) {
     window.create(sf::VideoMode({1000, 900}), "Capital Empire - Ultimate Edition");
     window.setFramerateLimit(60);
 
@@ -35,9 +40,6 @@ Application::Application() {
     }
 
     initAudio();
-
-    currentState = AppState::MENU;
-    stateTransitionTimer = 0.0f;
 
     game = std::make_unique<Game>("Capitalist", 0.0);
     initUI();
@@ -81,226 +83,160 @@ void Application::initAudio() {
     }
 }
 
+Application::Button Application::makeButton(sf::FloatRect rect, std::string text, sf::Color color,
+                                            Button::Type type, int businessIndex, int upgradeId) {
+    Button btn;
+    btn.rect = rect;
+    btn.text = std::move(text);
+    btn.color = color;
+    btn.type = type;
+    btn.businessIndex = businessIndex;
+    btn.upgradeId = upgradeId;
+    btn.isPressed = false;
+    return btn;
+}
+
+Application::Button Application::makeBackButton(sf::Color color) {
+    return makeButton({{20.f, 20.f}, {100.f, 50.f}}, "BACK", color, Button::BACK);
+}
+
 void Application::initUI() {
     initMenuUI();
     initAchievementUI();
     initGoldShopUI();
     initWheelUI();
+    initSeasonUI();
     initGameUI();
 }
 
 void Application::initMenuUI() {
     menuButtons.clear();
-
-    Button newGameBtn;
-    newGameBtn.rect = sf::FloatRect({350, 250}, {300, 70});
-    newGameBtn.text = "NEW GAME";
-    newGameBtn.color = COLOR_GREEN;
-    newGameBtn.type = Button::NEW_GAME;
-    newGameBtn.businessIndex = -1;
-    newGameBtn.upgradeId = -1;
-    newGameBtn.isPressed = false;
-    menuButtons.push_back(newGameBtn);
+    menuButtons.push_back(makeButton({{350.f, 250.f}, {300.f, 70.f}}, "NEW GAME", COLOR_GREEN, Button::NEW_GAME));
 
     if (Game::saveFileExists()) {
-        Button loadGameBtn;
-        loadGameBtn.rect = sf::FloatRect({350, 330}, {300, 70});
-        loadGameBtn.text = "LOAD GAME";
-        loadGameBtn.color = COLOR_BLUE;
-        loadGameBtn.type = Button::LOAD_GAME;
-        loadGameBtn.businessIndex = -1;
-        loadGameBtn.upgradeId = -1;
-        loadGameBtn.isPressed = false;
-        menuButtons.push_back(loadGameBtn);
+        menuButtons.push_back(makeButton({{350.f, 330.f}, {300.f, 70.f}}, "LOAD GAME", COLOR_BLUE, Button::LOAD_GAME));
     }
 
-    Button achBtn;
-    achBtn.rect = sf::FloatRect({350, 410}, {300, 70});
-    achBtn.text = "ACHIEVEMENTS";
-    achBtn.color = COLOR_ACCENT;
-    achBtn.type = Button::SHOW_ACHIEVEMENTS;
-    achBtn.businessIndex = -1;
-    achBtn.upgradeId = -1;
-    achBtn.isPressed = false;
-    menuButtons.push_back(achBtn);
+    menuButtons.push_back(makeButton({{350.f, 410.f}, {300.f, 70.f}}, "ACHIEVEMENTS", COLOR_ACCENT,
+                                     Button::SHOW_ACHIEVEMENTS));
 }
 
 void Application::initAchievementUI() {
     achievementButtons.clear();
-    Button backBtn;
-    backBtn.rect = sf::FloatRect({20, 20}, {100, 50});
-    backBtn.text = "BACK";
-    backBtn.color = COLOR_RED;
-    backBtn.type = Button::BACK;
-    backBtn.businessIndex = -1;
-    backBtn.upgradeId = -1;
-    backBtn.isPressed = false;
-    achievementButtons.push_back(backBtn);
+    achievementButtons.push_back(makeBackButton(COLOR_RED));
+}
+
+void Application::initSeasonUI() {
+    seasonButtons.clear();
+    seasonButtons.push_back(makeBackButton(COLOR_RED));
 }
 
 void Application::initGoldShopUI() {
     goldShopButtons.clear();
-    Button backBtn;
-    backBtn.rect = sf::FloatRect({20, 20}, {100, 50});
-    backBtn.text = "BACK";
-    backBtn.color = COLOR_RED;
-    backBtn.type = Button::BACK;
-    backBtn.businessIndex = -1;
-    backBtn.upgradeId = -1;
-    backBtn.isPressed = false;
-    goldShopButtons.push_back(backBtn);
+    goldShopButtons.push_back(makeBackButton(COLOR_RED));
 
-    struct UpgradeInfo {
-        std::string text;
-        sf::Color color;
-    };
-
-    UpgradeInfo upgrades[] = {
-        {"Profit x2 (5 Gold)", COLOR_GREEN},
-        {"Discount 10% (10 Gold)", COLOR_BLUE},
-        {"Speed +10% (15 Gold)", COLOR_ACCENT},
-        {"Small Biz Bonus +25% (3 Gold)", COLOR_GREEN},
-        {"Lemonade Mastery x10 (5 Gold)", COLOR_ACCENT},
-        {"Corp Tax Cut +50% (8 Gold)", COLOR_GREEN},
-        {"Headhunter -50% Mng (12 Gold)", COLOR_BLUE},
-        {"Night Shift 80% Off (20 Gold)", COLOR_ACCENT},
-        {"Bulk Buying -20% Upg (25 Gold)", COLOR_BLUE},
-        {"Automation Speed +20% (30 Gold)", COLOR_ACCENT},
-        {"Golden Touch +10% Prestige (40 Gold)", COLOR_ACCENT},
-        {"Market Monopoly x5 (50 Gold)", COLOR_GREEN},
-        {"Ocean King Shrimp x5 (60 Gold)", COLOR_ACCENT}
-    };
-
-    for (int i = 0; i < 13; ++i) {
-        Button btn;
-        float x = (i % 2 == 0) ? 50 : 520;
-        float y = 100 + (i / 2) * 70;
-
-        btn.rect = sf::FloatRect({x, y}, {430, 60});
-        btn.text = upgrades[i].text;
-        btn.color = upgrades[i].color;
-        btn.type = Button::BUY_GOLD_UPGRADE;
-        btn.upgradeId = i + 1;
-        btn.businessIndex = -1;
-        btn.isPressed = false;
-        goldShopButtons.push_back(btn);
+    const auto& catalog = Player::goldUpgradeCatalog();
+    for (size_t i = 0; i < catalog.size(); ++i) {
+        const float x = (i % 2 == 0) ? 50.f : 520.f;
+        const float y = 130.f + static_cast<float>(i / 2) * 70.f;
+        goldShopButtons.push_back(makeButton({{x, y}, {430.f, 60.f}}, catalog[i].getButtonText(),
+                                             COLOR_GREEN, Button::BUY_GOLD_UPGRADE, -1, catalog[i].getId()));
     }
 }
 
 void Application::initWheelUI() {
     wheelButtons.clear();
-    Button backBtn;
-    backBtn.rect = sf::FloatRect({20, 20}, {100, 50});
-    backBtn.text = "BACK";
-    backBtn.color = COLOR_RED;
-    backBtn.type = Button::BACK;
-    backBtn.businessIndex = -1;
-    backBtn.upgradeId = -1;
-    backBtn.isPressed = false;
-    wheelButtons.push_back(backBtn);
+    wheelButtons.push_back(makeBackButton(COLOR_RED));
+    wheelButtons.push_back(makeButton({{350.f, 400.f}, {300.f, 100.f}}, "SPIN (1 Gold)", COLOR_ACCENT,
+                                      Button::SPIN_WHEEL));
+}
 
-    Button spinBtn;
-    spinBtn.rect = sf::FloatRect({350, 400}, {300, 100});
-    spinBtn.text = "SPIN (1 Gold)";
-    spinBtn.color = COLOR_ACCENT;
-    spinBtn.type = Button::SPIN_WHEEL;
-    spinBtn.businessIndex = -1;
-    spinBtn.upgradeId = -1;
-    spinBtn.isPressed = false;
-    wheelButtons.push_back(spinBtn);
+size_t Application::businessCount() const {
+    return std::max<size_t>(1, game->getPlayer().getBusinesses().size());
+}
+
+float Application::businessRowHeight() const {
+    return (LIST_BOTTOM - LIST_TOP) / static_cast<float>(businessCount());
+}
+
+float Application::businessPanelHeight() const {
+    return businessRowHeight() - 13.f;
+}
+
+float Application::businessRowY(size_t index) const {
+    return LIST_TOP + static_cast<float>(index) * businessRowHeight();
 }
 
 void Application::initGameUI() {
     gameButtons.clear();
-    for(int i=0; i<6; ++i) {
-        createBusinessUI(i, 150 + i * 110);
+    for (int i = 0; i < static_cast<int>(game->getPlayer().getBusinesses().size()); ++i) {
+        createBusinessUI(i);
     }
 
-    Button menuBtn;
-    menuBtn.rect = sf::FloatRect({140, 20}, {100, 50});
-    menuBtn.text = "MENU";
-    menuBtn.color = COLOR_GRAY;
-    menuBtn.type = Button::MAIN_MENU;
-    menuBtn.businessIndex = -1;
-    menuBtn.upgradeId = -1;
-    menuBtn.isPressed = false;
-    gameButtons.push_back(menuBtn);
+    gameButtons.push_back(makeButton({{20.f, 20.f}, {100.f, 50.f}}, "RESET", COLOR_BLUE, Button::RESET));
+    gameButtons.push_back(makeButton({{140.f, 20.f}, {100.f, 50.f}}, "MENU", COLOR_GRAY, Button::MAIN_MENU));
 
-    Button resetBtn;
-    resetBtn.rect = sf::FloatRect({20, 20}, {100, 50});
-    resetBtn.text = "RESET";
-    resetBtn.color = COLOR_BLUE;
-    resetBtn.type = Button::RESET;
-    resetBtn.businessIndex = -1;
-    resetBtn.upgradeId = -1;
-    resetBtn.isPressed = false;
-    gameButtons.push_back(resetBtn);
+    const float bottomY = 840.f;
+    const float btnW = 180.f;
+    const float btnH = 50.f;
 
-    float bottomY = 840;
-    float btnW = 180;
-    float btnH = 50;
-
-    Button goldShopBtn;
-    goldShopBtn.rect = sf::FloatRect({400, bottomY}, {btnW, btnH});
-    goldShopBtn.text = "GOLD SHOP";
-    goldShopBtn.color = COLOR_ACCENT;
-    goldShopBtn.type = Button::SHOW_GOLD_SHOP;
-    goldShopBtn.businessIndex = -1;
-    goldShopBtn.upgradeId = -1;
-    goldShopBtn.isPressed = false;
-    gameButtons.push_back(goldShopBtn);
-
-    Button wheelBtn;
-    wheelBtn.rect = sf::FloatRect({600, bottomY}, {btnW, btnH});
-    wheelBtn.text = "LUCKY WHEEL";
-    wheelBtn.color = COLOR_RED;
-    wheelBtn.type = Button::SHOW_LUCKY_WHEEL;
-    wheelBtn.businessIndex = -1;
-    wheelBtn.upgradeId = -1;
-    wheelBtn.isPressed = false;
-    gameButtons.push_back(wheelBtn);
-
-    Button prestigeBtn;
-    prestigeBtn.rect = sf::FloatRect({800, bottomY}, {btnW, btnH});
-    prestigeBtn.text = "PRESTIGE";
-    prestigeBtn.color = COLOR_GRAY;
-    prestigeBtn.type = Button::PRESTIGE;
-    prestigeBtn.businessIndex = -1;
-    prestigeBtn.upgradeId = -1;
-    prestigeBtn.isPressed = false;
-    gameButtons.push_back(prestigeBtn);
+    gameButtons.push_back(makeButton({{200.f, bottomY}, {btnW, btnH}}, "SEZON", COLOR_GREEN, Button::SHOW_SEASON));
+    gameButtons.push_back(makeButton({{400.f, bottomY}, {btnW, btnH}}, "GOLD SHOP", COLOR_ACCENT,
+                                     Button::SHOW_GOLD_SHOP));
+    gameButtons.push_back(makeButton({{600.f, bottomY}, {btnW, btnH}}, "LUCKY WHEEL", COLOR_RED,
+                                     Button::SHOW_LUCKY_WHEEL));
+    gameButtons.push_back(makeButton({{800.f, bottomY}, {btnW, btnH}}, "PRESTIGE", COLOR_GRAY, Button::PRESTIGE));
 }
 
-void Application::createBusinessUI(int index, float yPos) {
-    Button startBtn;
-    startBtn.rect = sf::FloatRect({50, yPos - 5}, {90, 90});
-    startBtn.text = "GO!";
-    startBtn.color = COLOR_ACCENT;
-    startBtn.type = Button::START;
-    startBtn.businessIndex = index;
-    startBtn.upgradeId = -1;
-    startBtn.isPressed = false;
-    gameButtons.push_back(startBtn);
+void Application::createBusinessUI(int index) {
+    const float yPos = businessRowY(static_cast<size_t>(index));
+    const float panelH = businessPanelHeight();
 
-    Button buyBtn;
-    buyBtn.rect = sf::FloatRect({760, yPos + 10}, {200, 60});
-    buyBtn.text = "BUY";
-    buyBtn.color = COLOR_ACCENT;
-    buyBtn.type = Button::UPGRADE;
-    buyBtn.businessIndex = index;
-    buyBtn.upgradeId = -1;
-    buyBtn.isPressed = false;
-    gameButtons.push_back(buyBtn);
+    const float circleSize = std::min(90.f, panelH - 8.f);
+    const float actionH = std::min(60.f, panelH - 20.f);
+    const float circleY = yPos - 10.f + (panelH - circleSize) / 2.f;
+    const float actionY = yPos - 10.f + (panelH - actionH) / 2.f;
 
-    Button mngBtn;
-    mngBtn.rect = sf::FloatRect({670, yPos + 10}, {80, 60});
-    mngBtn.text = "M";
-    mngBtn.color = COLOR_BLUE;
-    mngBtn.type = Button::MANAGER;
-    mngBtn.businessIndex = index;
-    mngBtn.upgradeId = -1;
-    mngBtn.isPressed = false;
-    gameButtons.push_back(mngBtn);
+    gameButtons.push_back(makeButton({{50.f, circleY}, {circleSize, circleSize}}, "GO!", COLOR_ACCENT,
+                                     Button::START, index));
+    gameButtons.push_back(makeButton({{760.f, actionY}, {200.f, actionH}}, "BUY", COLOR_ACCENT,
+                                     Button::UPGRADE, index));
+    gameButtons.push_back(makeButton({{670.f, actionY}, {80.f, actionH}}, "M", COLOR_BLUE,
+                                     Button::MANAGER, index));
+}
+
+void Application::startGameSession() {
+    initGameUI();
+    currentState = AppState::GAME;
+    stateTransitionTimer = 0.5f;
+
+    const std::vector<std::string> boosted = game->applyRandomSeasonalBoosts();
+    if (boosted.empty()) return;
+
+    std::ostringstream message;
+    message << "BONUS DE SESIUNE x1.5\n";
+    for (size_t i = 0; i < boosted.size(); ++i) {
+        if (i > 0) message << ", ";
+        message << boosted[i];
+    }
+    pushNotification(message.str());
+}
+
+void Application::pushNotification(const std::string& text) {
+    notifications.push_back({text, 3.0f});
+}
+
+void Application::reportError(const std::exception& error) {
+    pushNotification(std::string("EROARE\n") + error.what());
+    if (errorSound.has_value()) errorSound->play();
+}
+
+void Application::saveQuietly() {
+    try {
+        game->saveGame();
+    } catch (const GameException& error) {
+        reportError(error);
+    }
 }
 
 void Application::run() {
@@ -308,14 +244,13 @@ void Application::run() {
         while (const std::optional event = window.pollEvent()) {
             if (event->is<sf::Event::Closed>()) {
                 if (currentState == AppState::GAME) {
-                    game->saveGame();
+                    saveQuietly();
                 }
                 window.close();
             }
-            if (event->is<sf::Event::KeyPressed>()) {
-                const auto* keyPressed = event->getIf<sf::Event::KeyPressed>();
+            if (const auto* keyPressed = event->getIf<sf::Event::KeyPressed>()) {
                 if (keyPressed->scancode == sf::Keyboard::Scancode::K && currentState == AppState::GAME) {
-                    auto& businesses = game->getPlayer().getBusinesses();
+                    const auto& businesses = game->getPlayer().getBusinesses();
                     if (!businesses.empty()) {
                         businesses[0]->setManagerHired(false);
                         spawnFloatingText("Manager Fired (Debug)", 500, 300, COLOR_RED);
@@ -324,7 +259,7 @@ void Application::run() {
             }
         }
 
-        float dt = clock.restart().asSeconds();
+        const float dt = clock.restart().asSeconds();
         update(dt);
         draw();
     }
@@ -333,7 +268,7 @@ void Application::run() {
 bool Application::isButtonClicked(Button& btn, const sf::Vector2i& mousePos) {
     if (stateTransitionTimer > 0.0f) return false;
 
-    bool hover = btn.rect.contains({static_cast<float>(mousePos.x), static_cast<float>(mousePos.y)});
+    const bool hover = btn.rect.contains({static_cast<float>(mousePos.x), static_cast<float>(mousePos.y)});
 
     if (hover && sf::Mouse::isButtonPressed(sf::Mouse::Button::Left)) {
         btn.isPressed = true;
@@ -344,7 +279,6 @@ bool Application::isButtonClicked(Button& btn, const sf::Vector2i& mousePos) {
         }
         btn.isPressed = false;
     }
-
     return false;
 }
 
@@ -353,236 +287,203 @@ void Application::update(float dt) {
         stateTransitionTimer -= dt;
     }
 
-    if (currentState == AppState::MENU) {
-        updateMenu(dt);
-    } else if (currentState == AppState::ACHIEVEMENTS) {
-        updateAchievements(dt);
-    } else if (currentState == AppState::GOLD_SHOP) {
-        updateGoldShop(dt);
-    } else if (currentState == AppState::LUCKY_WHEEL) {
-        updateWheel(dt);
-    } else {
-        updateGame(dt);
+    if (!notifications.empty()) {
+        notifications.front().timer -= dt;
+        if (notifications.front().timer <= 0.0f) {
+            notifications.pop_front();
+        }
+    }
+    updateFloatingTexts(dt);
+
+    switch (currentState) {
+        case AppState::MENU:         updateMenu(dt); break;
+        case AppState::ACHIEVEMENTS: updateAchievements(dt); break;
+        case AppState::GOLD_SHOP:    updateGoldShop(dt); break;
+        case AppState::LUCKY_WHEEL:  updateWheel(dt); break;
+        case AppState::SEASON_INFO:  updateSeasonInfo(dt); break;
+        case AppState::GAME:         updateGame(dt); break;
     }
 }
 
 void Application::updateMenu(float dt) {
     (void)dt;
-    sf::Vector2i mousePos = sf::Mouse::getPosition(window);
+    const sf::Vector2i mousePos = sf::Mouse::getPosition(window);
 
     for (auto& btn : menuButtons) {
-        if (isButtonClicked(btn, mousePos)) {
-            if (clickSound.has_value()) clickSound->play();
+        if (!isButtonClicked(btn, mousePos)) continue;
+        if (clickSound.has_value()) clickSound->play();
 
-            if (btn.type == Button::NEW_GAME) {
-                game = std::make_unique<Game>("Capitalist", 0.0);
-                initGameUI();
-                currentState = AppState::GAME;
-                stateTransitionTimer = 0.5f;
-            } else if (btn.type == Button::LOAD_GAME) {
-                game = std::make_unique<Game>("Capitalist", 0.0);
-                if (game->loadGame()) {
-                    initGameUI();
-                    currentState = AppState::GAME;
-                    stateTransitionTimer = 0.5f;
+        if (btn.type == Button::NEW_GAME) {
+            game = std::make_unique<Game>("Capitalist", 0.0);
+            startGameSession();
+        } else if (btn.type == Button::LOAD_GAME) {
+            auto loaded = std::make_unique<Game>("Capitalist", 0.0);
+            try {
+                if (!loaded->loadGame()) continue;
+                game = std::move(loaded);
+                startGameSession();
 
-                    double offline = game->getOfflineEarnings();
-                    if (offline > 0) {
-                        spawnFloatingText("Welcome Back! Offline Earnings: $" + std::to_string((long long)offline), 500, 450, COLOR_GREEN);
-                        if (cashSound.has_value()) cashSound->play();
-                        game->resetOfflineEarnings();
-                    }
+                const double offline = game->getOfflineEarnings();
+                if (offline > 0.0) {
+                    spawnFloatingText("Welcome Back! Offline Earnings: $" +
+                                      std::to_string(static_cast<long long>(offline)), 300, 450, COLOR_GREEN);
+                    if (cashSound.has_value()) cashSound->play();
+                    game->resetOfflineEarnings();
                 }
-            } else if (btn.type == Button::SHOW_ACHIEVEMENTS) {
-                currentState = AppState::ACHIEVEMENTS;
-                stateTransitionTimer = 0.2f;
+            } catch (const GameException& error) {
+                reportError(error);
             }
+        } else if (btn.type == Button::SHOW_ACHIEVEMENTS) {
+            currentState = AppState::ACHIEVEMENTS;
+            stateTransitionTimer = 0.2f;
         }
     }
 }
 
 void Application::updateAchievements(float dt) {
     (void)dt;
-    sf::Vector2i mousePos = sf::Mouse::getPosition(window);
+    const sf::Vector2i mousePos = sf::Mouse::getPosition(window);
     for (auto& btn : achievementButtons) {
-        if (isButtonClicked(btn, mousePos)) {
+        if (isButtonClicked(btn, mousePos) && btn.type == Button::BACK) {
             if (clickSound.has_value()) clickSound->play();
-            if (btn.type == Button::BACK) {
-                currentState = AppState::MENU;
-                stateTransitionTimer = 0.2f;
-            }
+            currentState = AppState::MENU;
+            stateTransitionTimer = 0.2f;
+        }
+    }
+}
+
+void Application::updateSeasonInfo(float dt) {
+    (void)dt;
+    const sf::Vector2i mousePos = sf::Mouse::getPosition(window);
+    for (auto& btn : seasonButtons) {
+        if (isButtonClicked(btn, mousePos) && btn.type == Button::BACK) {
+            if (clickSound.has_value()) clickSound->play();
+            currentState = AppState::GAME;
+            stateTransitionTimer = 0.2f;
         }
     }
 }
 
 void Application::updateGoldShop(float dt) {
     (void)dt;
-    sf::Vector2i mousePos = sf::Mouse::getPosition(window);
+    const sf::Vector2i mousePos = sf::Mouse::getPosition(window);
+    const Player& player = game->getPlayer();
+
     for (auto& btn : goldShopButtons) {
         if (btn.type == Button::BUY_GOLD_UPGRADE) {
-            int cost = 0;
-            if (btn.upgradeId == 1) cost = 5;
-            else if (btn.upgradeId == 2) cost = 10;
-            else if (btn.upgradeId == 3) cost = 15;
-            else if (btn.upgradeId == 4) cost = 3;
-            else if (btn.upgradeId == 5) cost = 5;
-            else if (btn.upgradeId == 6) cost = 8;
-            else if (btn.upgradeId == 7) cost = 12;
-            else if (btn.upgradeId == 8) cost = 20;
-            else if (btn.upgradeId == 9) cost = 25;
-            else if (btn.upgradeId == 10) cost = 30;
-            else if (btn.upgradeId == 11) cost = 40;
-            else if (btn.upgradeId == 12) cost = 50;
-            else if (btn.upgradeId == 13) cost = 60;
-
-            bool owned = game->getPlayer().hasGoldUpgrade(btn.upgradeId);
-            if (owned) {
+            if (player.hasGoldUpgrade(btn.upgradeId)) {
                 btn.color = COLOR_ACCENT;
-            } else if (game->getPlayer().getGold() >= cost) {
-                btn.color = COLOR_GREEN;
             } else {
-                btn.color = COLOR_RED;
+                btn.color = player.canAffordGoldUpgrade(btn.upgradeId) ? COLOR_GREEN : COLOR_RED;
             }
         }
 
-        if (isButtonClicked(btn, mousePos)) {
-            if (btn.type == Button::BACK) {
-                if (clickSound.has_value()) clickSound->play();
-                currentState = AppState::GAME;
-                stateTransitionTimer = 0.2f;
-            } else if (btn.type == Button::BUY_GOLD_UPGRADE) {
-                int cost = 0;
-                if (btn.upgradeId == 1) cost = 5;
-                else if (btn.upgradeId == 2) cost = 10;
-                else if (btn.upgradeId == 3) cost = 15;
-                else if (btn.upgradeId == 4) cost = 3;
-                else if (btn.upgradeId == 5) cost = 5;
-                else if (btn.upgradeId == 6) cost = 8;
-                else if (btn.upgradeId == 7) cost = 12;
-                else if (btn.upgradeId == 8) cost = 20;
-                else if (btn.upgradeId == 9) cost = 25;
-                else if (btn.upgradeId == 10) cost = 30;
-                else if (btn.upgradeId == 11) cost = 40;
-                else if (btn.upgradeId == 12) cost = 50;
-                else if (btn.upgradeId == 13) cost = 60;
+        if (!isButtonClicked(btn, mousePos)) continue;
 
-                if (game->getPlayer().hasGoldUpgrade(btn.upgradeId)) {
-                    if (errorSound.has_value()) errorSound->play();
-                } else if (game->getPlayer().getGold() >= cost) {
-                    game->getPlayer().setGold(game->getPlayer().getGold() - cost);
-                    game->getPlayer().setGoldUpgradeOwned(btn.upgradeId, true);
-
-                    if (btn.upgradeId == 1) game->getPlayer().addGlobalProfitMultiplier(1.0);
-                    else if (btn.upgradeId == 2) game->getPlayer().addGlobalDiscount(0.1);
-                    else if (btn.upgradeId == 3) game->getPlayer().addGlobalSpeedMultiplier(0.1);
-                    else if (btn.upgradeId == 4) game->getPlayer().addGlobalProfitMultiplier(0.25);
-                    else if (btn.upgradeId == 5) game->getPlayer().setLemonadeMultiplier(game->getPlayer().getLemonadeMultiplier() * 10.0);
-                    else if (btn.upgradeId == 6) game->getPlayer().addGlobalProfitMultiplier(0.5);
-                    else if (btn.upgradeId == 7) game->getPlayer().setManagerCostDiscount(game->getPlayer().getManagerCostDiscount() + 0.5);
-                    else if (btn.upgradeId == 8) game->getPlayer().setOfflineEarningsRatio(0.8);
-                    else if (btn.upgradeId == 9) game->getPlayer().addGlobalDiscount(0.2);
-                    else if (btn.upgradeId == 10) game->getPlayer().addGlobalSpeedMultiplier(0.2);
-                    else if (btn.upgradeId == 11) game->getPlayer().setPrestigeGoldBonus(game->getPlayer().getPrestigeGoldBonus() + 0.1);
-                    else if (btn.upgradeId == 12) game->getPlayer().addGlobalProfitMultiplier(4.0);
-                    else if (btn.upgradeId == 13) game->getPlayer().setShrimpMultiplier(game->getPlayer().getShrimpMultiplier() * 5.0);
-
-                    if (cashSound.has_value()) cashSound->play();
-                    game->saveGame();
-                } else {
-                    if (errorSound.has_value()) errorSound->play();
-                }
+        if (btn.type == Button::BACK) {
+            if (clickSound.has_value()) clickSound->play();
+            currentState = AppState::GAME;
+            stateTransitionTimer = 0.2f;
+        } else if (btn.type == Button::BUY_GOLD_UPGRADE) {
+            try {
+                game->getPlayer().buyGoldUpgrade(btn.upgradeId);
+                pushNotification("UPGRADE CUMPARAT\n" + Player::findGoldUpgrade(btn.upgradeId).getDescription());
+                if (cashSound.has_value()) cashSound->play();
+                saveQuietly();
+            } catch (const GameException& error) {
+                reportError(error);
             }
         }
     }
 }
 
-static float wheelSpinTimer = 0.0f;
-static bool isSpinning = false;
-static std::string wheelResultText = "SPIN TO WIN!";
+void Application::resolveWheelSpin() {
+    std::uniform_int_distribution<int> roll(0, 99);
+    const int result = roll(randomEngine);
+    Player& player = game->getPlayer();
+
+    if (result < 2) {
+        wheelResultText = "JACKPOT! 5 GOLD";
+        player.addGold(5);
+        if (achievementSound.has_value()) achievementSound->play();
+    } else if (result < 12) {
+        wheelResultText = "MINI! 2 GOLD";
+        player.addGold(2);
+        if (achievementSound.has_value()) achievementSound->play();
+    } else if (result < 30) {
+        wheelResultText = "REFUND! 1 GOLD";
+        player.addGold(1);
+        if (cashSound.has_value()) cashSound->play();
+    } else if (result < 50) {
+        const double reward = std::max(1000.0, player.getMoney() * 0.1);
+        wheelResultText = "WON $" + std::to_string(static_cast<long long>(reward));
+        player.addMoney(reward);
+        if (cashSound.has_value()) cashSound->play();
+    } else if (result < 60) {
+        const double reward = std::max(10000.0, player.getMoney() * 0.5);
+        wheelResultText = "BIG WIN $" + std::to_string(static_cast<long long>(reward));
+        player.addMoney(reward);
+        if (cashSound.has_value()) cashSound->play();
+    } else if (result < 75) {
+        wheelResultText = "PROFIT BOOST 1H (x2)";
+        player.activateTempBoost(3600.0, 2.0);
+        if (achievementSound.has_value()) achievementSound->play();
+    } else {
+        wheelResultText = "GHINION (Nothing)";
+        if (errorSound.has_value()) errorSound->play();
+    }
+    saveQuietly();
+}
 
 void Application::updateWheel(float dt) {
-    sf::Vector2i mousePos = sf::Mouse::getPosition(window);
+    const sf::Vector2i mousePos = sf::Mouse::getPosition(window);
 
-    if (isSpinning) {
+    if (wheelIsSpinning) {
         wheelSpinTimer -= dt;
-        if (wheelSpinTimer > 0) {
-            int r = rand() % 7;
-            if (r == 0) wheelResultText = "Jackpot 5 Gold";
-            else if (r == 1) wheelResultText = "Mini 2 Gold";
-            else if (r == 2) wheelResultText = "Refund 1 Gold";
-            else if (r == 3) wheelResultText = "Cash (Small)";
-            else if (r == 4) wheelResultText = "Cash (Big)";
-            else if (r == 5) wheelResultText = "Profit Boost 1h";
-            else wheelResultText = "GHINION";
+        if (wheelSpinTimer > 0.0f) {
+            static const std::vector<std::string> previewLabels = {
+                "Jackpot 5 Gold", "Mini 2 Gold", "Refund 1 Gold", "Cash (Small)",
+                "Cash (Big)", "Profit Boost 1h", "GHINION"
+            };
+            std::uniform_int_distribution<size_t> preview(0, previewLabels.size() - 1);
+            wheelResultText = previewLabels[preview(randomEngine)];
         } else {
-            isSpinning = false;
-            int r = rand() % 100;
-            if (r < 2) {
-                wheelResultText = "JACKPOT! 5 GOLD";
-                game->getPlayer().setGold(game->getPlayer().getGold() + 5);
-                if (achievementSound.has_value()) achievementSound->play();
-            } else if (r < 12) {
-                wheelResultText = "MINI! 2 GOLD";
-                game->getPlayer().setGold(game->getPlayer().getGold() + 2);
-                if (achievementSound.has_value()) achievementSound->play();
-            } else if (r < 30) {
-                wheelResultText = "REFUND! 1 GOLD";
-                game->getPlayer().setGold(game->getPlayer().getGold() + 1);
-                if (cashSound.has_value()) cashSound->play();
-            } else if (r < 50) {
-                double reward = std::max(1000.0, game->getPlayer().getMoney() * 0.1);
-                wheelResultText = "WON $" + std::to_string((long long)reward);
-                game->getPlayer().setMoney(game->getPlayer().getMoney() + reward);
-                if (cashSound.has_value()) cashSound->play();
-            } else if (r < 60) {
-                double reward = std::max(10000.0, game->getPlayer().getMoney() * 0.5);
-                wheelResultText = "BIG WIN $" + std::to_string((long long)reward);
-                game->getPlayer().setMoney(game->getPlayer().getMoney() + reward);
-                if (cashSound.has_value()) cashSound->play();
-            } else if (r < 75) {
-                wheelResultText = "PROFIT BOOST 1H (x2)";
-                game->getPlayer().activateTempBoost(3600.0, 2.0);
-                if (achievementSound.has_value()) achievementSound->play();
-            } else {
-                wheelResultText = "GHINION (Nothing)";
-                if (errorSound.has_value()) errorSound->play();
-            }
-            game->saveGame();
+            wheelIsSpinning = false;
+            resolveWheelSpin();
         }
         return;
     }
 
     for (auto& btn : wheelButtons) {
-        if (isButtonClicked(btn, mousePos)) {
-            if (btn.type == Button::BACK) {
+        if (!isButtonClicked(btn, mousePos)) continue;
+
+        if (btn.type == Button::BACK) {
+            if (clickSound.has_value()) clickSound->play();
+            currentState = AppState::GAME;
+            stateTransitionTimer = 0.2f;
+        } else if (btn.type == Button::SPIN_WHEEL) {
+            try {
+                game->getPlayer().spendGold(1);
+                wheelIsSpinning = true;
+                wheelSpinTimer = 2.0f;
                 if (clickSound.has_value()) clickSound->play();
-                currentState = AppState::GAME;
-                stateTransitionTimer = 0.2f;
-            } else if (btn.type == Button::SPIN_WHEEL) {
-                if (game->getPlayer().getGold() >= 1) {
-                    game->getPlayer().setGold(game->getPlayer().getGold() - 1);
-                    isSpinning = true;
-                    wheelSpinTimer = 2.0f;
-                    if (clickSound.has_value()) clickSound->play();
-                } else {
-                    if (errorSound.has_value()) errorSound->play();
-                }
+            } catch (const GameException& error) {
+                reportError(error);
             }
         }
     }
 }
 
 void Application::updateGame(float dt) {
-    double oldMoney = game->getPlayer().getMoney();
+    const double oldMoney = game->getPlayer().getMoney();
 
     updateGameNotifications(dt);
     updateGameInput();
     updateGameButtonsState();
-    updateFloatingTexts(dt);
 
-    double newMoney = game->getPlayer().getMoney();
+    const double newMoney = game->getPlayer().getMoney();
     if (newMoney > oldMoney) {
-        spawnFloatingText("+$" + std::to_string((long long)(newMoney - oldMoney)), 850, 80, COLOR_GREEN);
+        spawnFloatingText("+$" + std::to_string(static_cast<long long>(newMoney - oldMoney)), 850, 80, COLOR_GREEN);
     }
 }
 
@@ -590,7 +491,7 @@ void Application::updateFloatingTexts(float dt) {
     for (auto it = floatingTexts.begin(); it != floatingTexts.end();) {
         it->lifeTime -= dt;
         it->position.y -= 50.0f * dt;
-        if (it->lifeTime <= 0) {
+        if (it->lifeTime <= 0.0f) {
             it = floatingTexts.erase(it);
         } else {
             ++it;
@@ -603,25 +504,16 @@ void Application::spawnFloatingText(const std::string& text, float x, float y, s
 }
 
 void Application::updateGameNotifications(float dt) {
-    std::vector<std::string> newNotifications = game->update(dt);
-    for (const auto& msg : newNotifications) {
-        notifications.push_back({msg, 3.0f});
-        if (msg.find("ACHIEVEMENT:") == 0) {
-            if (achievementSound.has_value()) achievementSound->play();
-        }
-    }
-
-    if (!notifications.empty()) {
-        notifications.front().timer -= dt;
-        if (notifications.front().timer <= 0) {
-            notifications.pop_front();
+    for (const auto& message : game->update(dt)) {
+        pushNotification(message);
+        if (message.rfind("ACHIEVEMENT:", 0) == 0 && achievementSound.has_value()) {
+            achievementSound->play();
         }
     }
 }
 
 void Application::updateGameInput() {
-    sf::Vector2i mousePos = sf::Mouse::getPosition(window);
-
+    const sf::Vector2i mousePos = sf::Mouse::getPosition(window);
     for (auto& btn : gameButtons) {
         if (isButtonClicked(btn, mousePos)) {
             handleButtonClick(btn);
@@ -631,9 +523,14 @@ void Application::updateGameInput() {
 
 void Application::handleButtonClick(const Button& btn) {
     try {
+        Player& player = game->getPlayer();
+        const float labelY = btn.businessIndex >= 0
+                                 ? businessRowY(static_cast<size_t>(btn.businessIndex)) - 10.f
+                                 : 300.f;
+
         if (btn.type == Button::SAVE_EXIT) {
             if (clickSound.has_value()) clickSound->play();
-            game->saveGame();
+            saveQuietly();
             window.close();
         } else if (btn.type == Button::RESET) {
             if (clickSound.has_value()) clickSound->play();
@@ -641,10 +538,11 @@ void Application::handleButtonClick(const Button& btn) {
                 std::filesystem::remove("savegame.txt");
             }
             game = std::make_unique<Game>("Capitalist", 0.0);
-            notifications.push_back({"GAME RESET!", 2.0f});
+            initGameUI();
+            pushNotification("GAME RESET!");
         } else if (btn.type == Button::MAIN_MENU) {
             if (clickSound.has_value()) clickSound->play();
-            game->saveGame();
+            saveQuietly();
             currentState = AppState::MENU;
             stateTransitionTimer = 0.2f;
             initMenuUI();
@@ -656,117 +554,92 @@ void Application::handleButtonClick(const Button& btn) {
             if (clickSound.has_value()) clickSound->play();
             currentState = AppState::LUCKY_WHEEL;
             stateTransitionTimer = 0.2f;
+        } else if (btn.type == Button::SHOW_SEASON) {
+            if (clickSound.has_value()) clickSound->play();
+            currentState = AppState::SEASON_INFO;
+            stateTransitionTimer = 0.2f;
         } else if (btn.type == Button::PRESTIGE) {
-            if (game->getPlayer().canPrestige()) {
-                int gold = game->getPlayer().prestige();
-                game->saveGame();
-                initGameUI();
-                spawnFloatingText("PRESTIGE! +" + std::to_string(gold) + " Gold", 500, 300, COLOR_ACCENT);
-                if (achievementSound.has_value()) achievementSound->play();
-            } else {
-                if (errorSound.has_value()) errorSound->play();
+            if (!player.canPrestige()) {
+                throw BusinessNotOwnedException("ultima afacere la nivel 25 si 7.000.000$");
             }
+            const int gold = player.prestige();
+            saveQuietly();
+            initGameUI();
+            spawnFloatingText("PRESTIGE! +" + std::to_string(gold) + " Gold", 400, 300, COLOR_ACCENT);
+            if (achievementSound.has_value()) achievementSound->play();
         } else if (btn.type == Button::START) {
             if (clickSound.has_value()) clickSound->play();
-            game->getPlayer().startBusinessProduction(btn.businessIndex);
-            spawnFloatingText("Working...", 100, 140 + btn.businessIndex * 110, COLOR_WHITE);
+            player.startBusinessProduction(btn.businessIndex);
+            spawnFloatingText("Working...", 100, labelY, COLOR_WHITE);
         } else if (btn.type == Button::UPGRADE) {
-            const auto& businesses = game->getPlayer().getBusinesses();
-            if (btn.businessIndex >= 0 && static_cast<size_t>(btn.businessIndex) < businesses.size()) {
-                if (businesses[btn.businessIndex]->isOwned()) {
-                    game->getPlayer().upgradeBusiness(btn.businessIndex);
-                    spawnFloatingText("Upgraded!", 750, 140 + btn.businessIndex * 110, COLOR_GREEN);
-                    if (cashSound.has_value()) cashSound->play();
-                } else {
-                    game->getPlayer().purchaseBusiness(btn.businessIndex);
-                    spawnFloatingText("Purchased!", 750, 140 + btn.businessIndex * 110, COLOR_GREEN);
-                    if (cashSound.has_value()) cashSound->play();
-                }
-            }
-        } else if (btn.type == Button::MANAGER) {
-            const auto& businesses = game->getPlayer().getBusinesses();
-            if (businesses[btn.businessIndex]->hasManagerHired()) {
-                game->getPlayer().upgradeManager(btn.businessIndex);
-                spawnFloatingText("Manager Upgraded!", 680, 140 + btn.businessIndex * 110, COLOR_BLUE);
-                if (cashSound.has_value()) cashSound->play();
+            const auto& businesses = player.getBusinesses();
+            if (businesses.at(static_cast<size_t>(btn.businessIndex))->isOwned()) {
+                player.upgradeBusiness(btn.businessIndex);
+                spawnFloatingText("Upgraded!", 750, labelY, COLOR_GREEN);
             } else {
-                game->getPlayer().hireManager(btn.businessIndex);
-                spawnFloatingText("Manager Hired!", 680, 140 + btn.businessIndex * 110, COLOR_BLUE);
-                if (cashSound.has_value()) cashSound->play();
+                player.purchaseBusiness(btn.businessIndex);
+                spawnFloatingText("Purchased!", 750, labelY, COLOR_GREEN);
             }
+            if (cashSound.has_value()) cashSound->play();
+        } else if (btn.type == Button::MANAGER) {
+            const auto& businesses = player.getBusinesses();
+            if (businesses.at(static_cast<size_t>(btn.businessIndex))->hasManagerHired()) {
+                player.upgradeManager(btn.businessIndex);
+                spawnFloatingText("Manager Upgraded!", 680, labelY, COLOR_BLUE);
+            } else {
+                player.hireManager(btn.businessIndex);
+                spawnFloatingText("Manager Hired!", 680, labelY, COLOR_BLUE);
+            }
+            if (cashSound.has_value()) cashSound->play();
         }
-    } catch (const std::exception& e) {
-        std::cout << "Eroare: " << e.what() << std::endl;
-        spawnFloatingText("Error!", 500, 375, COLOR_RED);
-        if (errorSound.has_value()) errorSound->play();
+    } catch (const std::exception& error) {
+        reportError(error);
     }
 }
 
 void Application::updateGameButtonsState() {
-    const auto& businesses = game->getPlayer().getBusinesses();
-    double playerMoney = game->getPlayer().getMoney();
+    const Player& player = game->getPlayer();
+    const auto& businesses = player.getBusinesses();
+    const double playerMoney = player.getMoney();
 
     for (auto& btn : gameButtons) {
         if (btn.type == Button::PRESTIGE) {
-            if (game->getPlayer().canPrestige()) {
-                btn.color = COLOR_ACCENT;
-                btn.text = "PRESTIGE";
-            } else {
-                btn.color = COLOR_GRAY;
-                btn.text = "PRESTIGE";
-            }
+            const bool ready = player.canPrestige();
+            btn.color = ready ? COLOR_ACCENT : COLOR_GRAY;
+            btn.text = ready ? "PRESTIGE\n(Ready!)" : "PRESTIGE\n(Locked)";
         }
 
-        if (btn.businessIndex >= 0 && static_cast<size_t>(btn.businessIndex) < businesses.size()) {
-            const auto& b = businesses[btn.businessIndex];
+        if (btn.businessIndex < 0 || static_cast<size_t>(btn.businessIndex) >= businesses.size()) continue;
+        const auto& business = businesses[static_cast<size_t>(btn.businessIndex)];
 
-            if (btn.type == Button::UPGRADE) {
-                if (b->isOwned()) {
-                    btn.text = "BUY x1\n$" + std::to_string((int)b->getUpgradeCost());
-                    if (playerMoney >= b->getUpgradeCost()) {
-                        btn.color = COLOR_GREEN;
-                    } else {
-                        btn.color = COLOR_ACCENT;
-                    }
-                } else {
-                    if (b->getPurchaseCost() == 0) {
-                        btn.text = "FREE!";
-                        btn.color = COLOR_GREEN;
-                    } else {
-                        btn.text = "UNLOCK\n$" + std::to_string((int)b->getPurchaseCost());
-                        if (playerMoney >= b->getPurchaseCost()) {
-                            btn.color = COLOR_GREEN;
-                        } else {
-                            btn.color = COLOR_RED;
-                        }
-                    }
-                }
-            } else if (btn.type == Button::MANAGER) {
-                if (b->hasManagerHired()) {
-                    btn.text = "UPG\n$" + std::to_string((int)b->getManagerUpgradeCost());
-                    if (playerMoney >= b->getManagerUpgradeCost()) {
-                        btn.color = COLOR_GREEN;
-                    } else {
-                        btn.color = COLOR_GRAY;
-                    }
-                } else {
-                    btn.text = "MNG\n$" + std::to_string((int)b->getManagerCost());
-                    if (playerMoney >= b->getManagerCost()) {
-                        btn.color = COLOR_GREEN;
-                    } else {
-                        btn.color = COLOR_GRAY;
-                    }
-                }
-            } else if (btn.type == Button::START) {
-                if (!b->isOwned()) {
-                    btn.color = COLOR_GRAY;
-                } else if (b->hasManagerHired()) {
-                    btn.color = COLOR_GREEN;
-                } else if (b->isActive()) {
-                    btn.color = COLOR_ICON_RUN;
-                } else {
-                    btn.color = COLOR_ICON_IDLE;
-                }
+        if (btn.type == Button::UPGRADE) {
+            if (business->isOwned()) {
+                const double cost = business->getUpgradeCost();
+                const bool milestone = business->nextUpgradeIsMilestone();
+                btn.text = (milestone ? "MILESTONE\n$" : "BUY x1\n$") + std::to_string(static_cast<long long>(cost));
+                btn.color = playerMoney >= cost ? COLOR_GREEN : (milestone ? COLOR_RED : COLOR_ACCENT);
+            } else if (business->getPurchaseCost() == 0.0) {
+                btn.text = "FREE!";
+                btn.color = COLOR_GREEN;
+            } else {
+                const double cost = business->getPurchaseCost();
+                btn.text = "UNLOCK\n$" + std::to_string(static_cast<long long>(cost));
+                btn.color = playerMoney >= cost ? COLOR_GREEN : COLOR_RED;
+            }
+        } else if (btn.type == Button::MANAGER) {
+            const bool hired = business->hasManagerHired();
+            const double cost = hired ? business->getManagerUpgradeCost() : business->getManagerCost();
+            btn.text = (hired ? "UPG\n$" : "MNG\n$") + std::to_string(static_cast<long long>(cost));
+            btn.color = playerMoney >= cost ? COLOR_GREEN : COLOR_GRAY;
+        } else if (btn.type == Button::START) {
+            if (!business->isOwned()) {
+                btn.color = COLOR_GRAY;
+            } else if (business->hasManagerHired()) {
+                btn.color = COLOR_GREEN;
+            } else if (business->isActive()) {
+                btn.color = COLOR_ICON_RUN;
+            } else {
+                btn.color = COLOR_ICON_IDLE;
             }
         }
     }
@@ -775,43 +648,40 @@ void Application::updateGameButtonsState() {
 void Application::draw() {
     window.clear(COLOR_BG);
 
-    if (currentState == AppState::MENU) {
-        drawMenu();
-    } else if (currentState == AppState::ACHIEVEMENTS) {
-        drawAchievements();
-    } else if (currentState == AppState::GOLD_SHOP) {
-        drawGoldShop();
-    } else if (currentState == AppState::LUCKY_WHEEL) {
-        drawWheel();
-    } else {
-        drawGame();
+    switch (currentState) {
+        case AppState::MENU:         drawMenu(); break;
+        case AppState::ACHIEVEMENTS: drawAchievements(); break;
+        case AppState::GOLD_SHOP:    drawGoldShop(); break;
+        case AppState::LUCKY_WHEEL:  drawWheel(); break;
+        case AppState::SEASON_INFO:  drawSeasonInfo(); break;
+        case AppState::GAME:         drawGame(); break;
     }
 
+    drawGameNotifications();
+    drawFloatingTexts();
     window.display();
 }
 
 void Application::drawMenu() {
     drawText("Capital Empire", 350, 100, 50, COLOR_ACCENT);
-
     for (const auto& btn : menuButtons) {
         drawButton(btn);
     }
 }
 
 void Application::drawAchievements() {
-    drawText("Achievements", 350, 50, 40, COLOR_WHITE);
+    drawText("Achievements", 350, 30, 40, COLOR_WHITE);
 
     const auto& achievements = game->getPlayer().getAchievements();
-    float yPos = 120;
+    drawText("Deblocate: " + std::to_string(Achievement::countUnlocked(achievements)) + " / " +
+             std::to_string(achievements.size()), 700, 45, 24, COLOR_ACCENT);
 
+    float yPos = 100.f;
     for (const auto& ach : achievements) {
-        sf::Color textColor = ach.isUnlocked() ? COLOR_GREEN : COLOR_GRAY;
-        std::string status = ach.isUnlocked() ? "[UNLOCKED] " : "[LOCKED] ";
-
-        std::string text = status + ach.getName() + ": " + ach.getDescription();
-
-        drawText(text, 50, yPos, 24, textColor);
-        yPos += 40;
+        const sf::Color textColor = ach.isUnlocked() ? COLOR_GREEN : COLOR_GRAY;
+        const std::string status = ach.isUnlocked() ? "[UNLOCKED] " : "[LOCKED] ";
+        drawText(status + ach.getName() + ": " + ach.getDescription(), 40, yPos, 22, textColor);
+        yPos += 38.f;
     }
 
     for (const auto& btn : achievementButtons) {
@@ -819,11 +689,24 @@ void Application::drawAchievements() {
     }
 }
 
-void Application::drawGoldShop() {
-    drawText("Gold Shop", 400, 50, 40, COLOR_ACCENT);
+void Application::drawSeasonInfo() {
+    drawText("Informatii Sezon", 330, 30, 40, COLOR_GREEN);
+    drawMultilineText(game->getSeasonInfo(), 60, 130, 28, COLOR_WHITE);
+    drawText("Bonusuri active:", 60, 500, 28, COLOR_ACCENT);
+    drawText(game->getPlayer().getBonusSummary(), 60, 545, 24, COLOR_TEXT);
+    drawText("Realizari deblocate in aceasta sesiune: " + std::to_string(Achievement::getUnlockEvents()),
+             60, 590, 24, COLOR_TEXT);
+    drawText("Prestigii: " + std::to_string(game->getPlayer().getPrestigeCount()), 60, 630, 24, COLOR_TEXT);
 
-    std::string goldStr = "Gold: " + std::to_string(game->getPlayer().getGold());
-    drawText(goldStr, 800, 50, 30, COLOR_ACCENT);
+    for (const auto& btn : seasonButtons) {
+        drawButton(btn);
+    }
+}
+
+void Application::drawGoldShop() {
+    drawText("Gold Shop", 400, 30, 40, COLOR_ACCENT);
+    drawText("Gold: " + std::to_string(game->getPlayer().getGold()), 800, 40, 30, COLOR_ACCENT);
+    drawText(game->getPlayer().getBonusSummary(), 50, 90, 20, COLOR_TEXT);
 
     for (const auto& btn : goldShopButtons) {
         drawButton(btn);
@@ -832,12 +715,10 @@ void Application::drawGoldShop() {
 
 void Application::drawWheel() {
     drawText("Lucky Wheel", 380, 50, 40, COLOR_RED);
+    drawText("Gold: " + std::to_string(game->getPlayer().getGold()), 800, 50, 30, COLOR_ACCENT);
 
-    std::string goldStr = "Gold: " + std::to_string(game->getPlayer().getGold());
-    drawText(goldStr, 800, 50, 30, COLOR_ACCENT);
-
-    int w = getTextWidth(wheelResultText, 40);
-    drawText(wheelResultText, 500 - w/2, 300, 40, COLOR_WHITE);
+    const int width = getTextWidth(wheelResultText, 40);
+    drawText(wheelResultText, 500.f - static_cast<float>(width) / 2.f, 300, 40, COLOR_WHITE);
 
     for (const auto& btn : wheelButtons) {
         drawButton(btn);
@@ -848,15 +729,13 @@ void Application::drawGame() {
     drawGameHeader();
     drawGameBusinesses();
     drawGameButtons();
-    drawGameNotifications();
-    drawFloatingTexts();
 }
 
 void Application::drawFloatingTexts() {
-    for (const auto& ft : floatingTexts) {
-        sf::Color c = ft.color;
-        c.a = static_cast<std::uint8_t>(255 * (ft.lifeTime / 1.5f));
-        drawText(ft.text, ft.position.x, ft.position.y, 24, c);
+    for (const auto& floating : floatingTexts) {
+        sf::Color color = floating.color;
+        color.a = static_cast<std::uint8_t>(255.f * (floating.lifeTime / 1.5f));
+        drawText(floating.text, floating.position.x, floating.position.y, 24, color);
     }
 }
 
@@ -867,40 +746,41 @@ void Application::drawGameHeader() {
 
     drawText("Capital Empire", 300, 30, 40, COLOR_WHITE);
 
-    std::string moneyStr = "$" + std::to_string((long long)game->getPlayer().getMoney());
-    int moneyWidth = getTextWidth(moneyStr, 50);
-    drawText(moneyStr, 980 - moneyWidth, 25, 50, COLOR_ACCENT);
+    const std::string moneyStr = "$" + std::to_string(static_cast<long long>(game->getPlayer().getMoney()));
+    drawText(moneyStr, 980.f - static_cast<float>(getTextWidth(moneyStr, 50)), 25, 50, COLOR_ACCENT);
 
-    std::string goldStr = "Gold: " + std::to_string(game->getPlayer().getGold());
-    drawText(goldStr, 20, 860, 30, COLOR_ACCENT);
+    drawText(game->getPlayer().getBonusSummary(), 25, 106, 18, COLOR_TEXT);
+    drawText("Gold: " + std::to_string(game->getPlayer().getGold()), 20, 860, 30, COLOR_ACCENT);
 }
 
 void Application::drawGameBusinesses() {
     const auto& businesses = game->getPlayer().getBusinesses();
 
-    for (size_t i = 0; i < businesses.size(); ++i) {
-        float yPos = 150 + i * 110;
-        const auto& b = businesses[i];
+    const float panelH = businessPanelHeight();
 
-        sf::RectangleShape panel(sf::Vector2f(960, 100));
-        panel.setPosition({20, yPos - 10});
+    for (size_t i = 0; i < businesses.size(); ++i) {
+        const float yPos = businessRowY(i);
+        const auto& business = businesses[i];
+
+        sf::RectangleShape panel(sf::Vector2f(960.f, panelH));
+        panel.setPosition({20, yPos - 10.f});
         panel.setFillColor(COLOR_PANEL);
         panel.setOutlineColor(COLOR_BLACK);
         panel.setOutlineThickness(2);
         window.draw(panel);
 
-        float barX = 160;
-        float barY = yPos + 45;
-        float barW = 500;
-        float barH = 35;
+        const float barX = 160.f;
+        const float barH = 35.f;
+        const float barY = yPos - 10.f + panelH - barH - 8.f;
+        const float barW = 500.f;
 
         sf::RectangleShape bar(sf::Vector2f(barW, barH));
         bar.setPosition({barX, barY});
         bar.setFillColor(COLOR_BLACK);
         window.draw(bar);
 
-        if (b->isOwned()) {
-            float progress = b->getProgress();
+        if (business->isOwned()) {
+            const float progress = static_cast<float>(business->getProgress());
             sf::RectangleShape progressBar(sf::Vector2f(barW * progress, barH));
             progressBar.setPosition({barX, barY});
             progressBar.setFillColor(COLOR_GREEN);
@@ -916,19 +796,23 @@ void Application::drawGameBusinesses() {
             }
         }
 
-        std::string nameLvl = b->getName();
-        if (b->isOwned()) nameLvl += "  [Lv " + std::to_string(b->getLevel()) + "]";
-        drawText(nameLvl, barX, yPos + 5, 30, COLOR_WHITE);
+        std::string nameLvl = business->getName();
+        if (business->isOwned()) {
+            nameLvl += "  [Lv " + std::to_string(business->getLevel()) + "]";
+        }
+        drawText(nameLvl, barX, yPos + 2.f, 28, COLOR_WHITE);
+        drawText(business->getStatusLabel(), barX + 250.f, yPos + 10.f, 18, COLOR_ACCENT);
 
-        if (b->isOwned()) {
-            std::string profitStr = "$" + std::to_string((int)b->getProfitPerCycle());
-            drawText(profitStr, barX + 10, barY + 5, 24, COLOR_WHITE);
+        if (business->isOwned()) {
+            drawText("$" + std::to_string(static_cast<long long>(business->getProfitPerCycle())),
+                     barX + 10.f, barY + 5.f, 24, COLOR_WHITE);
 
-            char timeBuffer[16];
-            snprintf(timeBuffer, sizeof(timeBuffer), "%.1fs", b->getProductionTime());
-            drawText(timeBuffer, barX + barW - 80, barY + 5, 24, COLOR_WHITE);
+            std::ostringstream timeText;
+            timeText.precision(1);
+            timeText << std::fixed << business->getProductionTime() << "s";
+            drawText(timeText.str(), barX + barW - 80.f, barY + 5.f, 24, COLOR_WHITE);
         } else {
-            drawText("LOCKED", barX + 200, barY + 5, 24, COLOR_RED);
+            drawText("LOCKED", barX + 200.f, barY + 5.f, 24, COLOR_RED);
         }
     }
 }
@@ -940,34 +824,29 @@ void Application::drawGameButtons() {
 }
 
 void Application::drawGameNotifications() {
-    if (!notifications.empty()) {
-        const auto& notif = notifications.front();
-        int textWidth = getTextWidth(notif.text, 30);
-        int boxW = textWidth + 60;
-        int boxH = 120;
-        int boxX = 500 - boxW / 2;
-        int boxY = 375 - boxH / 2;
+    if (notifications.empty()) return;
 
-        sf::RectangleShape box(sf::Vector2f(boxW, boxH));
-        box.setPosition({(float)boxX, (float)boxY});
-        box.setFillColor(COLOR_BLACK);
-        box.setOutlineColor(COLOR_ACCENT);
-        box.setOutlineThickness(4);
-        window.draw(box);
+    const auto& notif = notifications.front();
+    const size_t breakPos = notif.text.find('\n');
+    const std::string line1 = notif.text.substr(0, breakPos);
+    const std::string line2 = breakPos == std::string::npos ? "" : notif.text.substr(breakPos + 1);
 
-        if (notif.text.find('\n') != std::string::npos) {
-            size_t pos = notif.text.find('\n');
-            std::string line1 = notif.text.substr(0, pos);
-            std::string line2 = notif.text.substr(pos + 1);
+    const int widest = std::max(getTextWidth(line1, 30), getTextWidth(line2, 30));
+    const float boxW = static_cast<float>(widest) + 60.f;
+    const float boxH = 120.f;
+    const float boxX = 500.f - boxW / 2.f;
+    const float boxY = 375.f - boxH / 2.f;
 
-            int w1 = getTextWidth(line1, 30);
-            int w2 = getTextWidth(line2, 30);
+    sf::RectangleShape box(sf::Vector2f(boxW, boxH));
+    box.setPosition({boxX, boxY});
+    box.setFillColor(COLOR_BLACK);
+    box.setOutlineColor(COLOR_ACCENT);
+    box.setOutlineThickness(4);
+    window.draw(box);
 
-            drawText(line1, boxX + boxW/2 - w1/2, boxY + 20, 30, COLOR_ACCENT);
-            drawText(line2, boxX + boxW/2 - w2/2, boxY + 60, 30, COLOR_WHITE);
-        } else {
-            drawText(notif.text, boxX + 30, boxY + 45, 30, COLOR_ACCENT);
-        }
+    drawText(line1, boxX + boxW / 2.f - static_cast<float>(getTextWidth(line1, 30)) / 2.f, boxY + 20.f, 30, COLOR_ACCENT);
+    if (!line2.empty()) {
+        drawText(line2, boxX + boxW / 2.f - static_cast<float>(getTextWidth(line2, 30)) / 2.f, boxY + 60.f, 30, COLOR_WHITE);
     }
 }
 
@@ -981,54 +860,65 @@ void Application::drawButton(const Button& btn, bool isCircle) {
     }
 
     if (isCircle) {
-        sf::CircleShape circle(drawRect.size.x / 2);
+        sf::CircleShape circle(drawRect.size.x / 2.f);
         circle.setPosition({drawRect.position.x, drawRect.position.y});
         circle.setFillColor(btn.color);
         circle.setOutlineColor(COLOR_BLACK);
         circle.setOutlineThickness(2);
         window.draw(circle);
 
-        const char* iconText = "Click";
-        if (btn.color == COLOR_GREEN) iconText = "Auto";
-        int w = getTextWidth(iconText, 20);
-        drawText(iconText, drawRect.position.x + drawRect.size.x/2 - w/2, drawRect.position.y + drawRect.size.y/2 - 10, 20, COLOR_BLACK);
-    } else {
-        sf::RectangleShape rect(sf::Vector2f(drawRect.size.x, drawRect.size.y));
-        rect.setPosition({drawRect.position.x, drawRect.position.y});
-        rect.setFillColor(btn.color);
-        rect.setOutlineColor(COLOR_BLACK);
-        rect.setOutlineThickness(2);
-        window.draw(rect);
-
-        if (btn.text.find('\n') != std::string::npos) {
-            size_t pos = btn.text.find('\n');
-            std::string line1 = btn.text.substr(0, pos);
-            std::string line2 = btn.text.substr(pos + 1);
-
-            int w1 = getTextWidth(line1, 20);
-            int w2 = getTextWidth(line2, 20);
-
-            drawText(line1, drawRect.position.x + drawRect.size.x/2 - w1/2, drawRect.position.y + 10, 20, COLOR_WHITE);
-            drawText(line2, drawRect.position.x + drawRect.size.x/2 - w2/2, drawRect.position.y + 35, 20, COLOR_WHITE);
-        } else {
-            int w = getTextWidth(btn.text, 20);
-            drawText(btn.text, drawRect.position.x + drawRect.size.x/2 - w/2, drawRect.position.y + drawRect.size.y/2 - 10, 20, COLOR_WHITE);
-        }
+        const std::string iconText = (btn.color == COLOR_GREEN) ? "Auto" : "Click";
+        drawText(iconText,
+                 drawRect.position.x + drawRect.size.x / 2.f - static_cast<float>(getTextWidth(iconText, 20)) / 2.f,
+                 drawRect.position.y + drawRect.size.y / 2.f - 10.f, 20, COLOR_BLACK);
+        return;
     }
+
+    sf::RectangleShape rect(sf::Vector2f(drawRect.size.x, drawRect.size.y));
+    rect.setPosition({drawRect.position.x, drawRect.position.y});
+    rect.setFillColor(btn.color);
+    rect.setOutlineColor(COLOR_BLACK);
+    rect.setOutlineThickness(2);
+    window.draw(rect);
+
+    const size_t breakPos = btn.text.find('\n');
+    if (breakPos == std::string::npos) {
+        drawText(btn.text,
+                 drawRect.position.x + drawRect.size.x / 2.f - static_cast<float>(getTextWidth(btn.text, 20)) / 2.f,
+                 drawRect.position.y + drawRect.size.y / 2.f - 10.f, 20, COLOR_WHITE);
+        return;
+    }
+
+    const std::string line1 = btn.text.substr(0, breakPos);
+    const std::string line2 = btn.text.substr(breakPos + 1);
+    drawText(line1, drawRect.position.x + drawRect.size.x / 2.f - static_cast<float>(getTextWidth(line1, 20)) / 2.f,
+             drawRect.position.y + 10.f, 20, COLOR_WHITE);
+    drawText(line2, drawRect.position.x + drawRect.size.x / 2.f - static_cast<float>(getTextWidth(line2, 20)) / 2.f,
+             drawRect.position.y + 35.f, 20, COLOR_WHITE);
 }
 
 void Application::drawText(const std::string& text, float x, float y, int size, sf::Color color) {
     sf::Text sfText(font);
     sfText.setString(text);
-    sfText.setCharacterSize(size);
+    sfText.setCharacterSize(static_cast<unsigned int>(size));
     sfText.setFillColor(color);
     sfText.setPosition({x, y});
     window.draw(sfText);
 }
 
+void Application::drawMultilineText(const std::string& text, float x, float y, int size, sf::Color color) {
+    std::istringstream stream(text);
+    std::string line;
+    float currentY = y;
+    while (std::getline(stream, line)) {
+        drawText(line, x, currentY, size, color);
+        currentY += static_cast<float>(size) + 8.f;
+    }
+}
+
 int Application::getTextWidth(const std::string& text, int size) {
     sf::Text sfText(font);
     sfText.setString(text);
-    sfText.setCharacterSize(size);
-    return sfText.getLocalBounds().size.x;
+    sfText.setCharacterSize(static_cast<unsigned int>(size));
+    return static_cast<int>(sfText.getLocalBounds().size.x);
 }

@@ -1,19 +1,22 @@
 #pragma once
-#include <string>
 #include <iostream>
 
 class Upgrade {
 private:
-    double cost;
-    double multiplier;
+    int requiredLevel;
+    double costMultiplier;
+    double profitMultiplier;
     bool purchased;
 
 public:
-    explicit Upgrade(double c = 0, double m = 1.0);
+    Upgrade(int requiredLevel, double costMultiplier, double profitMultiplier);
 
     [[nodiscard]] bool isPurchased() const;
+    [[nodiscard]] int getRequiredLevel() const;
+    [[nodiscard]] double getCostMultiplier() const;
     [[nodiscard]] double getMultiplier() const;
-    [[nodiscard]] double getCost() const;
+
+    void purchase();
 
     friend std::ostream& operator<<(std::ostream& os, const Upgrade& u);
 };

@@ -1,8 +1,9 @@
 #include "Business.h"
-#include <iostream>
+#include "Exceptions.h"
+#include <algorithm>
+#include <cmath>
 #include <iomanip>
 #include <utility>
-#include <cmath>
 
 Business::Business(std::string name, double profit, double upgrade, double cost, double time, double mngCost)
     : name(std::move(name)),
@@ -18,20 +19,29 @@ Business::Business(std::string name, double profit, double upgrade, double cost,
       manager(nullptr),
       productionTime(time),
       currentTimer(0.0),
-      isProducing(false) {
+      isProducing(false),
+      sessionMultiplier(1.0) {
 
-    if (managerBaseCost <= 0) {
-        if (purchaseCost > 0) {
-            managerBaseCost = purchaseCost * 10;
-        } else {
-            managerBaseCost = 100.0;
-        }
+    if (this->name.empty()) {
+        throw InvalidBusinessDataException("<fara nume>", "numele nu poate fi gol");
+    }
+    if (profit <= 0.0) {
+        throw InvalidBusinessDataException(this->name, "profitul pe ciclu trebuie sa fie pozitiv");
+    }
+    if (upgrade <= 0.0) {
+        throw InvalidBusinessDataException(this->name, "costul de upgrade trebuie sa fie pozitiv");
+    }
+    if (cost < 0.0) {
+        throw InvalidBusinessDataException(this->name, "costul de achizitie nu poate fi negativ");
+    }
+    if (time <= 0.0) {
+        throw InvalidBusinessDataException(this->name, "timpul de productie trebuie sa fie pozitiv");
+    }
+    if (mngCost <= 0.0) {
+        throw InvalidBusinessDataException(this->name, "costul managerului trebuie sa fie pozitiv");
     }
 
-    if (upgradeCost <= 0) {
-        upgradeCost = 10.0;
-        initialUpgradeCost = 10.0;
-    }
+    initMilestones();
 }
 
 Business::Business(const Business& other)
@@ -45,16 +55,12 @@ Business::Business(const Business& other)
       initialProductionTime(other.initialProductionTime),
       level(other.level),
       owned(other.owned),
+      manager(other.manager ? std::make_unique<Manager>(*other.manager) : nullptr),
       upgrades(other.upgrades),
       productionTime(other.productionTime),
       currentTimer(other.currentTimer),
-      isProducing(other.isProducing) {
-    if (other.manager) {
-        manager = std::make_unique<Manager>(*other.manager);
-    } else {
-        manager = nullptr;
-    }
-}
+      isProducing(other.isProducing),
+      sessionMultiplier(other.sessionMultiplier) {}
 
 Business& Business::operator=(const Business& other) {
     if (this == &other) {
@@ -70,19 +76,36 @@ Business& Business::operator=(const Business& other) {
     initialProductionTime = other.initialProductionTime;
     level = other.level;
     owned = other.owned;
+    manager = other.manager ? std::make_unique<Manager>(*other.manager) : nullptr;
     upgrades = other.upgrades;
     productionTime = other.productionTime;
     currentTimer = other.currentTimer;
     isProducing = other.isProducing;
-    if (other.manager) {
-        manager = std::make_unique<Manager>(*other.manager);
-    } else {
-        manager = nullptr;
-    }
+    sessionMultiplier = other.sessionMultiplier;
     return *this;
 }
 
-double Business::update(double deltaTime) {
+void Business::initMilestones() {
+    upgrades.clear();
+    upgrades.emplace_back(10, 3.0, 2.0);
+    upgrades.emplace_back(25, 4.0, 3.0);
+    upgrades.emplace_back(50, 5.0, 5.0);
+}
+
+const Upgrade* Business::nextMilestone() const {
+    for (const auto& u : upgrades) {
+        if (!u.isPurchased() && u.getRequiredLevel() == level + 1) {
+            return &u;
+        }
+    }
+    return nullptr;
+}
+
+double Business::baseRevenue(double bonusMultiplier) const {
+    return profitPerCycle * bonusMultiplier * sessionMultiplier;
+}
+
+double Business::update(double deltaTime, double bonusMultiplier) {
     if (!owned) return 0.0;
 
     if (hasManagerHired() && !isProducing) {
@@ -96,7 +119,7 @@ double Business::update(double deltaTime) {
             if (!hasManagerHired()) {
                 isProducing = false;
             }
-            return std::floor(profitPerCycle);
+            return std::floor(calculateRevenue(bonusMultiplier));
         }
     }
     return 0.0;
@@ -111,12 +134,15 @@ void Business::startProduction() {
 void Business::levelUp() {
     level++;
 
-    double profitFactor = 1.15;
-    if (level > 50) {
-        profitFactor = 1.05;
+    for (auto& u : upgrades) {
+        if (!u.isPurchased() && u.getRequiredLevel() == level) {
+            u.purchase();
+            profitPerCycle *= u.getMultiplier();
+        }
     }
-    profitPerCycle *= profitFactor;
 
+    const double profitFactor = (level > 50) ? 1.05 : 1.15;
+    profitPerCycle *= profitFactor;
     upgradeCost *= 1.15;
 
     if (level % 25 == 0) {
@@ -128,13 +154,11 @@ void Business::unlock() {
     owned = true;
     level = 1;
     isProducing = false;
-    std::cout << "Ai cumparat " << name << "!\n";
 }
 
 void Business::hireManager() {
     manager = std::make_unique<Manager>(name + " Manager", getManagerCost());
     isProducing = true;
-    std::cout << "Manager angajat pentru " << name << "!\n";
 }
 
 void Business::upgradeManager() {
@@ -152,29 +176,65 @@ void Business::reset() {
     manager = nullptr;
     currentTimer = 0.0;
     isProducing = false;
+    sessionMultiplier = 1.0;
+    initMilestones();
 }
 
-void Business::setLevel(int lvl) { level = lvl; }
-void Business::setOwned(bool o) { owned = o; }
-void Business::setManagerHired(bool h) {
-    if (h && !manager) {
-        manager = std::make_unique<Manager>(name + " Manager", getManagerCost());
-        isProducing = true;
-    } else if (!h) {
+void Business::restoreState(int savedLevel, bool savedOwned, bool savedManager, int managerLevel,
+                            double savedProfit, double savedUpgradeCost) {
+    level = std::max(0, savedLevel);
+    owned = savedOwned;
+    profitPerCycle = savedProfit;
+    upgradeCost = savedUpgradeCost;
+    currentTimer = 0.0;
+    isProducing = false;
+    sessionMultiplier = 1.0;
+
+    initMilestones();
+    for (auto& u : upgrades) {
+        if (u.getRequiredLevel() <= level) {
+            u.purchase();
+        }
+    }
+
+    productionTime = initialProductionTime;
+    for (int reached = 25; reached <= level; reached += 25) {
+        productionTime /= 2.0;
+    }
+
+    manager = nullptr;
+    if (owned && savedManager) {
+        hireManager();
+        for (int i = 1; i < managerLevel; ++i) {
+            manager->upgrade();
+        }
+    }
+}
+
+void Business::setManagerHired(bool hired) {
+    if (hired && !manager) {
+        hireManager();
+    } else if (!hired) {
         manager = nullptr;
     }
 }
-void Business::setProfit(double p) { profitPerCycle = p; }
-void Business::setUpgradeCost(double c) { upgradeCost = c; }
+
+void Business::setSessionMultiplier(double multiplier) {
+    sessionMultiplier = multiplier > 0.0 ? multiplier : 1.0;
+}
 
 bool Business::isOwned() const { return owned; }
 bool Business::hasManagerHired() const { return manager != nullptr; }
 const std::string& Business::getName() const { return name; }
 int Business::getLevel() const { return level; }
 double Business::getProfitPerCycle() const { return profitPerCycle; }
+double Business::getSessionMultiplier() const { return sessionMultiplier; }
 
 double Business::getUpgradeCost() const {
     double cost = upgradeCost;
+    if (const Upgrade* milestone = nextMilestone()) {
+        cost *= milestone->getCostMultiplier();
+    }
     if (manager) {
         cost *= manager->getDiscountFactor();
     }
@@ -192,6 +252,10 @@ double Business::getManagerUpgradeCost() const {
         return std::floor(manager->getCost());
     }
     return 0.0;
+}
+
+bool Business::nextUpgradeIsMilestone() const {
+    return nextMilestone() != nullptr;
 }
 
 double Business::getProgress() const {
@@ -212,15 +276,22 @@ int Business::getManagerLevel() const {
     return 0;
 }
 
+std::string Business::getStatusLabel() const {
+    return "Standard";
+}
+
 void Business::display(std::ostream& os) const {
     print(os);
 }
 
 void Business::print(std::ostream& os) const {
     os << std::fixed << std::setprecision(0);
-    os << getName() << " (Lvl " << getLevel() << ")";
-    os << " | Profit: " << getProfitPerCycle() << "$";
+    os << name << " (Lvl " << level << ")";
+    os << " | Profit: " << profitPerCycle << "$";
     os << " | Timp: " << std::setprecision(1) << productionTime << "s";
+    if (manager) {
+        os << " | " << *manager;
+    }
 }
 
 std::ostream& operator<<(std::ostream& os, const Business& b) {

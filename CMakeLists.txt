@@ -64,12 +64,19 @@ add_executable(${MAIN_EXECUTABLE_NAME}
         Application.h
         Business.cpp
         Business.h
+        Exceptions.h
         Game.cpp
         Game.h
+        GoldUpgrade.cpp
+        GoldUpgrade.h
         Manager.cpp
         Manager.h
         Player.cpp
         Player.h
+        PremiumBusiness.cpp
+        PremiumBusiness.h
+        SeasonalBusiness.cpp
+        SeasonalBusiness.h
         StandardBusiness.cpp
         StandardBusiness.h
         Upgrade.cpp
@@ -108,7 +115,7 @@ if(APPLE)
 endif()
 
 
-copy_files(FILES tastatura.txt COPY_TO_DESTINATION TARGET_NAME ${MAIN_EXECUTABLE_NAME})
+copy_files(FILES tastatura.txt Roboto-Regular.ttf COPY_TO_DESTINATION TARGET_NAME ${MAIN_EXECUTABLE_NAME})
 
 if(WIN32)
     add_custom_command(TARGET ${MAIN_EXECUTABLE_NAME} POST_BUILD

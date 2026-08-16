@@ -1,35 +1,52 @@
 #pragma once
+#include <iostream>
+#include <map>
+#include <memory>
 #include <string>
 #include <vector>
-#include <memory>
-#include "Business.h"
-#include "Wallet.h"
 #include "Achievement.h"
+#include "Business.h"
+#include "GoldUpgrade.h"
+#include "Wallet.h"
 
 class Player {
 private:
     std::string name;
     Wallet wallet;
     int gold;
+    int prestigeCount;
     std::vector<std::unique_ptr<Business>> businesses;
     std::vector<Achievement> achievements;
 
     double globalProfitMultiplier;
     double globalDiscount;
     double globalSpeedMultiplier;
-
-    double lemonadeMultiplier;
-    double shrimpMultiplier;
     double managerCostDiscount;
     double offlineEarningsRatio;
     double prestigeGoldBonus;
+
+    std::map<std::string, double> businessMultipliers;
 
     double tempBoostTimer;
     double tempBoostMultiplier;
 
     std::vector<bool> goldUpgradesOwned;
 
+    static const std::vector<GoldUpgrade> catalog;
+
     void initAchievements();
+    void applyGoldUpgradeEffect(int id);
+
+    [[nodiscard]] Business& businessAt(int index);
+    [[nodiscard]] const Business& businessAt(int index) const;
+
+    [[nodiscard]] double staticBonusFor(const Business& business) const;
+    [[nodiscard]] double bonusFor(const Business& business) const;
+    [[nodiscard]] double discountedPrice(double basePrice) const;
+    [[nodiscard]] double managerPrice(double basePrice) const;
+
+    [[nodiscard]] PlayerProgress buildProgress() const;
+    std::vector<std::string> checkAchievements();
 
 public:
     Player(const std::string& name, double money);
@@ -38,28 +55,29 @@ public:
     Player& operator=(Player other);
     Player(Player&&) noexcept = default;
     Player& operator=(Player&&) noexcept = default;
+    ~Player() = default;
 
     void addBusiness(std::unique_ptr<Business> business);
 
     [[nodiscard]] const std::string& getName() const;
     [[nodiscard]] double getMoney() const;
     [[nodiscard]] int getGold() const;
-    void setGold(int g);
+    [[nodiscard]] int getPrestigeCount() const;
     [[nodiscard]] const std::vector<std::unique_ptr<Business>>& getBusinesses() const;
     [[nodiscard]] const std::vector<Achievement>& getAchievements() const;
-
-    void setMoney(double m);
-    void unlockAchievement(const std::string& achievementName);
+    [[nodiscard]] std::string getBonusSummary() const;
 
     std::vector<std::string> update(double deltaTime);
-    std::vector<std::string> checkAchievements();
 
     void startBusinessProduction(int index);
-
     void purchaseBusiness(int index);
     void upgradeBusiness(int index);
     void hireManager(int index);
     void upgradeManager(int index);
+
+    void addMoney(double amount);
+    void addGold(int amount);
+    void spendGold(int amount);
 
     double calculateOfflineEarnings(double secondsOffline);
 
@@ -67,34 +85,23 @@ public:
     [[nodiscard]] int calculatePrestigeGold() const;
     int prestige();
 
-    void addGlobalProfitMultiplier(double val);
-    void addGlobalDiscount(double val);
-    void addGlobalSpeedMultiplier(double val);
-
-    void setLemonadeMultiplier(double val) { lemonadeMultiplier = val; }
-    void setShrimpMultiplier(double val) { shrimpMultiplier = val; }
-    void setManagerCostDiscount(double val) { managerCostDiscount = val; }
-    void setOfflineEarningsRatio(double val) { offlineEarningsRatio = val; }
-    void setPrestigeGoldBonus(double val) { prestigeGoldBonus = val; }
-
     void activateTempBoost(double duration, double multiplier);
-    [[maybe_unused]] double getTempBoostTimer() const { return tempBoostTimer; }
-    [[maybe_unused]]void setTempBoostTimer(double t) { tempBoostTimer = t; }
+    [[nodiscard]] double getTempBoostTimer() const;
+    [[nodiscard]] double getTempBoostMultiplier() const;
 
-    [[nodiscard]] double getGlobalProfitMultiplier() const { return globalProfitMultiplier; }
-    [[nodiscard]] double getGlobalDiscount() const { return globalDiscount; }
-    [[nodiscard]] double getGlobalSpeedMultiplier() const { return globalSpeedMultiplier; }
-
-    [[nodiscard]] double getLemonadeMultiplier() const { return lemonadeMultiplier; }
-    [[nodiscard]] double getShrimpMultiplier() const { return shrimpMultiplier; }
-    [[nodiscard]] double getManagerCostDiscount() const { return managerCostDiscount; }
-    [[nodiscard]] double getOfflineEarningsRatio() const { return offlineEarningsRatio; }
-    [[nodiscard]] double getPrestigeGoldBonus() const { return prestigeGoldBonus; }
+    static const std::vector<GoldUpgrade>& goldUpgradeCatalog();
+    static const GoldUpgrade& findGoldUpgrade(int id);
 
     [[nodiscard]] bool hasGoldUpgrade(int id) const;
-    void setGoldUpgradeOwned(int id, bool owned);
-    [[nodiscard]] const std::vector<bool>& getGoldUpgradesOwned() const { return goldUpgradesOwned; }
-    void setGoldUpgradesOwned(const std::vector<bool>& owned) { goldUpgradesOwned = owned; }
+    [[nodiscard]] bool canAffordGoldUpgrade(int id) const;
+    void buyGoldUpgrade(int id);
+    [[nodiscard]] const std::vector<bool>& getGoldUpgradesOwned() const;
+
+    void restoreProgress(double savedMoney, int savedGold, int savedPrestigeCount,
+                         const std::vector<bool>& ownedUpgrades,
+                         double boostTimer, double boostMultiplier);
+    void unlockAchievement(const std::string& achievementName);
 
     friend void swap(Player& first, Player& second) noexcept;
+    friend std::ostream& operator<<(std::ostream& os, const Player& p);
 };
