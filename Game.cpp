@@ -1,5 +1,6 @@
 #include "Game.h"
 #include "Exceptions.h"
+#include "FranchiseBusiness.h"
 #include "PremiumBusiness.h"
 #include "SeasonalBusiness.h"
 #include "StandardBusiness.h"
@@ -26,6 +27,7 @@ void Game::setupBusinesses() {
     player.addBusiness(std::make_unique<SeasonalBusiness>("Inghetata", 100, 400, 1000, 10.0, 10000.0, Season::SUMMER));
     player.addBusiness(std::make_unique<PremiumBusiness>("Restaurant", 120, 360, 3000, 10.0, 15000.0, 1.75));
     player.addBusiness(std::make_unique<SeasonalBusiness>("Gogosi", 500, 1500, 10000, 20.0, 50000.0, Season::WINTER));
+    player.addBusiness(std::make_unique<FranchiseBusiness>("Cafenea", 900, 2700, 20000, 30.0, 100000.0, 5, 0.25));
     player.addBusiness(std::make_unique<SeasonalBusiness>("Creveti", 2200, 6600, 40000, 45.0, 200000.0, Season::SUMMER));
 }
 

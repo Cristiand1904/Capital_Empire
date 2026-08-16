@@ -65,6 +65,8 @@ add_executable(${MAIN_EXECUTABLE_NAME}
         Business.cpp
         Business.h
         Exceptions.h
+        FranchiseBusiness.cpp
+        FranchiseBusiness.h
         Game.cpp
         Game.h
         GoldUpgrade.cpp
