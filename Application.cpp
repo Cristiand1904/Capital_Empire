@@ -567,7 +567,7 @@ void Application::handleButtonClick(const Button& btn) {
             stateTransitionTimer = 0.2f;
         } else if (btn.type == Button::PRESTIGE) {
             if (!player.canPrestige()) {
-                throw BusinessNotOwnedException("ultima afacere la nivel 25 si 7.000.000$");
+                throw PrestigeLockedException(7000000.0, 25);
             }
             const int gold = player.prestige();
             saveQuietly();
@@ -613,7 +613,7 @@ void Application::updateGameButtonsState() {
         if (btn.type == Button::PRESTIGE) {
             const bool ready = player.canPrestige();
             btn.color = ready ? COLOR_ACCENT : COLOR_GRAY;
-            btn.text = ready ? "PRESTIGE\n(Ready!)" : "PRESTIGE\n(Locked)";
+            btn.text = ready ? "PRESTIGE\n(Ready!)" : "PRESTIGE";
         }
 
         if (btn.businessIndex < 0 || static_cast<size_t>(btn.businessIndex) >= businesses.size()) continue;
@@ -833,14 +833,17 @@ void Application::drawGameButtons() {
 void Application::drawGameNotifications() {
     if (notifications.empty()) return;
 
-    const auto& notif = notifications.front();
-    const size_t breakPos = notif.text.find('\n');
-    const std::string line1 = notif.text.substr(0, breakPos);
-    const std::string line2 = breakPos == std::string::npos ? "" : notif.text.substr(breakPos + 1);
+    const int textSize = 30;
+    const float lineHeight = 38.f;
+    const std::vector<std::string> lines = wrapText(notifications.front().text, textSize, 820.f);
 
-    const int widest = std::max(getTextWidth(line1, 30), getTextWidth(line2, 30));
+    int widest = 0;
+    for (const auto& line : lines) {
+        widest = std::max(widest, getTextWidth(line, textSize));
+    }
+
     const float boxW = static_cast<float>(widest) + 60.f;
-    const float boxH = 120.f;
+    const float boxH = 40.f + static_cast<float>(lines.size()) * lineHeight;
     const float boxX = 500.f - boxW / 2.f;
     const float boxY = 375.f - boxH / 2.f;
 
@@ -851,9 +854,12 @@ void Application::drawGameNotifications() {
     box.setOutlineThickness(4);
     window.draw(box);
 
-    drawText(line1, boxX + boxW / 2.f - static_cast<float>(getTextWidth(line1, 30)) / 2.f, boxY + 20.f, 30, COLOR_ACCENT);
-    if (!line2.empty()) {
-        drawText(line2, boxX + boxW / 2.f - static_cast<float>(getTextWidth(line2, 30)) / 2.f, boxY + 60.f, 30, COLOR_WHITE);
+    float lineY = boxY + 20.f;
+    for (size_t i = 0; i < lines.size(); ++i) {
+        const sf::Color color = (i == 0) ? COLOR_ACCENT : COLOR_WHITE;
+        const float lineX = boxX + boxW / 2.f - static_cast<float>(getTextWidth(lines[i], textSize)) / 2.f;
+        drawText(lines[i], lineX, lineY, textSize, color);
+        lineY += lineHeight;
     }
 }
 
@@ -921,6 +927,34 @@ void Application::drawMultilineText(const std::string& text, float x, float y, i
         drawText(line, x, currentY, size, color);
         currentY += static_cast<float>(size) + 8.f;
     }
+}
+
+std::vector<std::string> Application::wrapText(const std::string& text, int size, float maxWidth) {
+    std::vector<std::string> lines;
+    std::istringstream paragraphs(text);
+    std::string paragraph;
+
+    while (std::getline(paragraphs, paragraph)) {
+        std::istringstream words(paragraph);
+        std::string word;
+        std::string current;
+
+        while (words >> word) {
+            const std::string candidate = current.empty() ? word : current + " " + word;
+            if (!current.empty() && static_cast<float>(getTextWidth(candidate, size)) > maxWidth) {
+                lines.push_back(current);
+                current = word;
+            } else {
+                current = candidate;
+            }
+        }
+        lines.push_back(current);
+    }
+
+    if (lines.empty()) {
+        lines.emplace_back();
+    }
+    return lines;
 }
 
 int Application::getTextWidth(const std::string& text, int size) {

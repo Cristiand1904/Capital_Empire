@@ -135,6 +135,7 @@ private:
     void drawButton(const Button& btn, bool isCircle = false);
     void drawText(const std::string& text, float x, float y, int size, sf::Color color);
     void drawMultilineText(const std::string& text, float x, float y, int size, sf::Color color);
+    std::vector<std::string> wrapText(const std::string& text, int size, float maxWidth);
     int getTextWidth(const std::string& text, int size);
 
     void spawnFloatingText(const std::string& text, float x, float y, sf::Color color);

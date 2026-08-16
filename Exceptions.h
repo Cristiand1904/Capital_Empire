@@ -58,6 +58,14 @@ public:
         : GameException("Trebuie sa detii business-ul '" + name + "' pentru a efectua aceasta actiune!") {}
 };
 
+class PrestigeLockedException : public GameException {
+public:
+    PrestigeLockedException(double requiredMoney, int requiredLevel)
+        : GameException("Prestige blocat: ai nevoie de " +
+                        std::to_string(static_cast<long long>(requiredMoney)) +
+                        "$ si ultima afacere la nivelul " + std::to_string(requiredLevel) + ".") {}
+};
+
 class InvalidBusinessDataException : public GameException {
 public:
     InvalidBusinessDataException(const std::string& name, const std::string& reason)
