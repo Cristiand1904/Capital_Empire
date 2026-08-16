@@ -1,0 +1,19 @@
+MONEY;1;10;Primul Dolar;Castiga primul tau dolar
+HAS_UPGRADE;1;10;Primul Upgrade;Fa un upgrade la o afacere
+HAS_MANAGER;1;10;Primul Manager;Angajeaza un manager
+MONEY;100;100;Suta de Dolari;Strange 100$
+MONEY;1000;500;Mie de Dolari;Strange 1.000$
+MONEY;100000;50000;Magnat;Strange 100.000$
+MONEY;1000000;500000;Milionar;Strange 1.000.000$
+MONEY;1000000000;50000000;Miliardar;Strange 1.000.000.000$
+TOTAL_LEVELS;10;500;Inceputuri;Atinge total 10 nivele la afaceri
+TOTAL_LEVELS;50;5000;In Crestere;Atinge total 50 nivele la afaceri
+TOTAL_LEVELS;100;50000;Expansiune;Atinge total 100 nivele la afaceri
+TOTAL_LEVELS;500;1000000;Imperiu;Atinge total 500 nivele la afaceri
+TOTAL_LEVELS;1000;10000000;Dominatie;Atinge total 1000 nivele la afaceri
+TOTAL_MANAGERS;3;25000;Sef de Echipa;Angajeaza 3 manageri
+TOTAL_MANAGERS;7;250000;Consiliu Complet;Angajeaza cate un manager la fiecare afacere
+SPECIFIC_BUSINESS_LEVEL;10;150000;Baron al Cafelei;Ridica Cafeneaua la nivelul 10;Cafenea
+SPECIFIC_BUSINESS_LEVEL;25;2000000;Rege al Crevetilor;Ridica Crevetii la nivelul 25;Creveti
+PRESTIGE_COUNT;1;100000;Renastere;Fa primul prestige
+TOTAL_GOLD;25;500000;Investitor de Aur;Strange 25 gold

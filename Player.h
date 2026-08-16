@@ -17,6 +17,7 @@ private:
     int prestigeCount;
     std::vector<std::unique_ptr<Business>> businesses;
     std::vector<Achievement> achievements;
+    std::vector<GoldUpgrade> goldUpgrades;
 
     double globalProfitMultiplier;
     double globalDiscount;
@@ -32,10 +33,8 @@ private:
 
     std::vector<bool> goldUpgradesOwned;
 
-    static const std::vector<GoldUpgrade> catalog;
-
-    void initAchievements();
-    void applyGoldUpgradeEffect(int id);
+    void resetBonuses();
+    void applyGoldUpgradeEffect(const GoldUpgrade& upgrade);
 
     [[nodiscard]] Business& businessAt(int index);
     [[nodiscard]] const Business& businessAt(int index) const;
@@ -49,7 +48,8 @@ private:
     std::vector<std::string> checkAchievements();
 
 public:
-    Player(const std::string& name, double money);
+    Player(std::string name, double money, std::vector<GoldUpgrade> upgrades,
+           std::vector<Achievement> achievements);
 
     Player(const Player& other);
     Player& operator=(Player other);
@@ -89,9 +89,8 @@ public:
     [[nodiscard]] double getTempBoostTimer() const;
     [[nodiscard]] double getTempBoostMultiplier() const;
 
-    static const std::vector<GoldUpgrade>& goldUpgradeCatalog();
-    static const GoldUpgrade& findGoldUpgrade(int id);
-
+    [[nodiscard]] const std::vector<GoldUpgrade>& goldUpgradeCatalog() const;
+    [[nodiscard]] const GoldUpgrade& findGoldUpgrade(int id) const;
     [[nodiscard]] bool hasGoldUpgrade(int id) const;
     [[nodiscard]] bool canAffordGoldUpgrade(int id) const;
     void buyGoldUpgrade(int id);

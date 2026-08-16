@@ -1,0 +1,14 @@
+1;5;PROFIT;1.0;;Profit x2;Dubleaza profitul global
+2;10;DISCOUNT;0.1;;Discount 10%;Reduce toate costurile cu 10%
+3;15;SPEED;0.1;;Speed +10%;Toate afacerile produc cu 10% mai repede
+4;3;PROFIT;0.25;;Small Biz Bonus +25%;Creste profitul global cu 25%
+5;5;BUSINESS;10.0;Limonada;Lemonade Mastery x10;Limonada produce de 10 ori mai mult
+6;8;PROFIT;0.5;;Corp Tax Cut +50%;Creste profitul global cu 50%
+7;12;MANAGER_DISCOUNT;0.5;;Headhunter -50% Mng;Managerii costa cu 50% mai putin
+8;20;OFFLINE_RATIO;0.8;;Night Shift 80% Off;Castigi 80% din productia offline
+9;25;DISCOUNT;0.2;;Bulk Buying -20% Upg;Reduce toate costurile cu inca 20%
+10;30;SPEED;0.2;;Automation Speed +20%;Toate afacerile produc cu inca 20% mai repede
+11;40;PRESTIGE_GOLD;0.1;;Golden Touch +10%;Primesti cu 10% mai mult gold la prestige
+12;50;PROFIT;4.0;;Market Monopoly x5;Creste profitul global de 5 ori
+13;60;BUSINESS;5.0;Creveti;Ocean King Shrimp x5;Crevetii produc de 5 ori mai mult
+14;35;BUSINESS;4.0;Cafenea;Coffee Empire x4;Cafeneaua produce de 4 ori mai mult

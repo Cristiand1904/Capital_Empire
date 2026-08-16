@@ -64,6 +64,8 @@ add_executable(${MAIN_EXECUTABLE_NAME}
         Application.h
         Business.cpp
         Business.h
+        DataLoader.cpp
+        DataLoader.h
         Exceptions.h
         FranchiseBusiness.cpp
         FranchiseBusiness.h
@@ -117,7 +119,8 @@ if(APPLE)
 endif()
 
 
-copy_files(FILES tastatura.txt Roboto-Regular.ttf COPY_TO_DESTINATION TARGET_NAME ${MAIN_EXECUTABLE_NAME})
+copy_files(FILES tastatura.txt Roboto-Regular.ttf DIRECTORY data
+           COPY_TO_DESTINATION TARGET_NAME ${MAIN_EXECUTABLE_NAME})
 
 if(WIN32)
     add_custom_command(TARGET ${MAIN_EXECUTABLE_NAME} POST_BUILD

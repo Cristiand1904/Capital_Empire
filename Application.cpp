@@ -135,7 +135,7 @@ void Application::initGoldShopUI() {
     goldShopButtons.clear();
     goldShopButtons.push_back(makeBackButton(COLOR_RED));
 
-    const auto& catalog = Player::goldUpgradeCatalog();
+    const auto& catalog = game->getPlayer().goldUpgradeCatalog();
     for (size_t i = 0; i < catalog.size(); ++i) {
         const float x = (i % 2 == 0) ? 50.f : 520.f;
         const float y = 130.f + static_cast<float>(i / 2) * 70.f;
@@ -207,6 +207,7 @@ void Application::createBusinessUI(int index) {
 
 void Application::startGameSession() {
     initGameUI();
+    initGoldShopUI();
     currentState = AppState::GAME;
     stateTransitionTimer = 0.5f;
 
@@ -314,8 +315,12 @@ void Application::updateMenu(float dt) {
         if (clickSound.has_value()) clickSound->play();
 
         if (btn.type == Button::NEW_GAME) {
-            game = std::make_unique<Game>("Capitalist", 0.0);
-            startGameSession();
+            try {
+                game = std::make_unique<Game>("Capitalist", 0.0);
+                startGameSession();
+            } catch (const GameException& error) {
+                reportError(error);
+            }
         } else if (btn.type == Button::LOAD_GAME) {
             auto loaded = std::make_unique<Game>("Capitalist", 0.0);
             try {
@@ -387,7 +392,8 @@ void Application::updateGoldShop(float dt) {
         } else if (btn.type == Button::BUY_GOLD_UPGRADE) {
             try {
                 game->getPlayer().buyGoldUpgrade(btn.upgradeId);
-                pushNotification("UPGRADE CUMPARAT\n" + Player::findGoldUpgrade(btn.upgradeId).getDescription());
+                pushNotification("UPGRADE CUMPARAT\n" +
+                                 game->getPlayer().findGoldUpgrade(btn.upgradeId).getDescription());
                 if (cashSound.has_value()) cashSound->play();
                 saveQuietly();
             } catch (const GameException& error) {
@@ -539,6 +545,7 @@ void Application::handleButtonClick(const Button& btn) {
             }
             game = std::make_unique<Game>("Capitalist", 0.0);
             initGameUI();
+            initGoldShopUI();
             pushNotification("GAME RESET!");
         } else if (btn.type == Button::MAIN_MENU) {
             if (clickSound.has_value()) clickSound->play();

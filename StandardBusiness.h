@@ -1,4 +1,5 @@
 #pragma once
+#include <optional>
 #include "Business.h"
 
 enum class BusinessType {
@@ -28,4 +29,6 @@ public:
     [[nodiscard]] std::string getStatusLabel() const override;
 
     [[nodiscard]] BusinessType getType() const;
+
+    static std::optional<BusinessType> typeFromString(const std::string& text);
 };

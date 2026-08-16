@@ -1,9 +1,8 @@
-#include "Game.h"
+﻿#include "Game.h"
+#include "DataLoader.h"
 #include "Exceptions.h"
-#include "FranchiseBusiness.h"
 #include "PremiumBusiness.h"
 #include "SeasonalBusiness.h"
-#include "StandardBusiness.h"
 #include <algorithm>
 #include <ctime>
 #include <filesystem>
@@ -16,19 +15,22 @@
 const std::string Game::SAVE_HEADER = "CAPITAL_EMPIRE_SAVE";
 const int Game::SAVE_VERSION = 2;
 
+const std::string Game::BUSINESSES_FILE = "data/businesses.txt";
+const std::string Game::GOLD_UPGRADES_FILE = "data/gold_upgrades.txt";
+const std::string Game::ACHIEVEMENTS_FILE = "data/achievements.txt";
+
 Game::Game(const std::string& playerName, double initialMoney)
-    : player(playerName, initialMoney), offlineEarnings(0.0), seasonBonusAnnounced(false) {
+    : player(playerName, initialMoney,
+             DataLoader::loadGoldUpgrades(GOLD_UPGRADES_FILE),
+             DataLoader::loadAchievements(ACHIEVEMENTS_FILE)),
+      offlineEarnings(0.0), seasonBonusAnnounced(false) {
     setupBusinesses();
 }
 
 void Game::setupBusinesses() {
-    player.addBusiness(std::make_unique<StandardBusiness>("Limonada", BusinessType::LEMONADE, 1, 4, 0, 1.0, 100.0));
-    player.addBusiness(std::make_unique<StandardBusiness>("Pizza", BusinessType::PIZZA, 10, 40, 100, 3.0, 1000.0));
-    player.addBusiness(std::make_unique<SeasonalBusiness>("Inghetata", 100, 400, 1000, 10.0, 10000.0, Season::SUMMER));
-    player.addBusiness(std::make_unique<PremiumBusiness>("Restaurant", 120, 360, 3000, 10.0, 15000.0, 1.75));
-    player.addBusiness(std::make_unique<SeasonalBusiness>("Gogosi", 500, 1500, 10000, 20.0, 50000.0, Season::WINTER));
-    player.addBusiness(std::make_unique<FranchiseBusiness>("Cafenea", 900, 2700, 20000, 30.0, 100000.0, 5, 0.25));
-    player.addBusiness(std::make_unique<SeasonalBusiness>("Creveti", 2200, 6600, 40000, 45.0, 200000.0, Season::SUMMER));
+    for (auto& business : DataLoader::loadBusinesses(BUSINESSES_FILE)) {
+        player.addBusiness(std::move(business));
+    }
 }
 
 Player& Game::getPlayer() { return player; }
@@ -119,7 +121,7 @@ std::vector<std::string> Game::update(double deltaTime) {
 void Game::saveGame(const std::string& filename) const {
     std::ofstream outFile(filename);
     if (!outFile.is_open()) {
-        throw SaveFileException(filename, "nu poate fi deschis pentru scriere");
+        throw DataFileException(filename, "nu poate fi deschis pentru scriere");
     }
 
     outFile << std::setprecision(std::numeric_limits<double>::max_digits10);
@@ -154,7 +156,7 @@ void Game::saveGame(const std::string& filename) const {
     }
 
     if (!outFile.good()) {
-        throw SaveFileException(filename, "scrierea nu s-a incheiat corect");
+        throw DataFileException(filename, "scrierea nu s-a incheiat corect");
     }
 }
 
@@ -167,10 +169,10 @@ bool Game::loadGame(const std::string& filename) {
     std::string header;
     int version = 0;
     if (!(inFile >> header >> version) || header != SAVE_HEADER) {
-        throw SaveFileException(filename, "format vechi sau necunoscut, porneste un joc nou");
+        throw DataFileException(filename, "format vechi sau necunoscut, porneste un joc nou");
     }
     if (version != SAVE_VERSION) {
-        throw SaveFileException(filename, "versiune incompatibila (" + std::to_string(version) + ")");
+        throw DataFileException(filename, "versiune incompatibila (" + std::to_string(version) + ")");
     }
 
     std::time_t savedTime = 0;
@@ -182,14 +184,14 @@ bool Game::loadGame(const std::string& filename) {
     size_t upgradeCount = 0;
 
     if (!(inFile >> savedTime >> money >> savedGold >> savedPrestige >> boostTimer >> boostMultiplier >> upgradeCount)) {
-        throw SaveFileException(filename, "datele jucatorului sunt corupte");
+        throw DataFileException(filename, "datele jucatorului sunt corupte");
     }
 
     std::vector<bool> ownedUpgrades(upgradeCount, false);
     for (size_t i = 0; i < upgradeCount; ++i) {
         bool value = false;
         if (!(inFile >> value)) {
-            throw SaveFileException(filename, "lista de upgrade-uri gold este corupta");
+            throw DataFileException(filename, "lista de upgrade-uri gold este corupta");
         }
         ownedUpgrades[i] = value;
     }
@@ -198,7 +200,7 @@ bool Game::loadGame(const std::string& filename) {
 
     size_t businessCount = 0;
     if (!(inFile >> businessCount)) {
-        throw SaveFileException(filename, "numarul de afaceri lipseste");
+        throw DataFileException(filename, "numarul de afaceri lipseste");
     }
 
     const auto& businesses = player.getBusinesses();
@@ -212,7 +214,7 @@ bool Game::loadGame(const std::string& filename) {
         double upgradeCost = 0.0;
 
         if (!(inFile >> savedName >> level >> owned >> hasManager >> managerLevel >> profit >> upgradeCost)) {
-            throw SaveFileException(filename, "datele afacerilor sunt corupte");
+            throw DataFileException(filename, "datele afacerilor sunt corupte");
         }
 
         const auto match = std::find_if(businesses.begin(), businesses.end(),
@@ -226,14 +228,14 @@ bool Game::loadGame(const std::string& filename) {
 
     size_t achievementCount = 0;
     if (!(inFile >> achievementCount)) {
-        throw SaveFileException(filename, "numarul de realizari lipseste");
+        throw DataFileException(filename, "numarul de realizari lipseste");
     }
 
     const auto& achievements = player.getAchievements();
     for (size_t i = 0; i < achievementCount; ++i) {
         bool unlocked = false;
         if (!(inFile >> unlocked)) {
-            throw SaveFileException(filename, "datele realizarilor sunt corupte");
+            throw DataFileException(filename, "datele realizarilor sunt corupte");
         }
         if (unlocked && i < achievements.size()) {
             player.unlockAchievement(achievements[i].getName());

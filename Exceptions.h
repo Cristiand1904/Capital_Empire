@@ -64,8 +64,12 @@ public:
         : GameException("Date invalide pentru afacerea '" + name + "': " + reason) {}
 };
 
-class SaveFileException : public GameException {
+class DataFileException : public GameException {
 public:
-    SaveFileException(const std::string& filename, const std::string& reason)
-        : GameException("Problema cu fisierul de salvare '" + filename + "': " + reason) {}
+    DataFileException(const std::string& filename, const std::string& reason)
+        : GameException("Problema cu fisierul '" + filename + "': " + reason) {}
+
+    DataFileException(const std::string& filename, size_t lineNumber, const std::string& reason)
+        : GameException("Problema cu fisierul '" + filename + "', linia " +
+                        std::to_string(lineNumber) + ": " + reason) {}
 };

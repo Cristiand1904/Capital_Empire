@@ -1,6 +1,7 @@
 #pragma once
 #include <iostream>
 #include <map>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -62,6 +63,7 @@ public:
 
     static int getUnlockEvents();
     static int countUnlocked(const std::vector<Achievement>& list);
+    static std::optional<AchievementType> typeFromString(const std::string& text);
 
     friend std::ostream& operator<<(std::ostream& os, const Achievement& ach);
 };

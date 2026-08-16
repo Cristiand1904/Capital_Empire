@@ -87,6 +87,18 @@ int Achievement::getUnlockEvents() {
     return unlockEvents;
 }
 
+std::optional<AchievementType> Achievement::typeFromString(const std::string& text) {
+    if (text == "MONEY") return AchievementType::MONEY;
+    if (text == "TOTAL_LEVELS") return AchievementType::TOTAL_LEVELS;
+    if (text == "HAS_MANAGER") return AchievementType::HAS_MANAGER;
+    if (text == "HAS_UPGRADE") return AchievementType::HAS_UPGRADE;
+    if (text == "TOTAL_MANAGERS") return AchievementType::TOTAL_MANAGERS;
+    if (text == "PRESTIGE_COUNT") return AchievementType::PRESTIGE_COUNT;
+    if (text == "TOTAL_GOLD") return AchievementType::TOTAL_GOLD;
+    if (text == "SPECIFIC_BUSINESS_LEVEL") return AchievementType::SPECIFIC_BUSINESS_LEVEL;
+    return std::nullopt;
+}
+
 int Achievement::countUnlocked(const std::vector<Achievement>& list) {
     return static_cast<int>(std::count_if(list.begin(), list.end(),
                                           [](const Achievement& ach) { return ach.isUnlocked(); }));

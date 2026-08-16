@@ -32,6 +32,16 @@ BusinessType StandardBusiness::getType() const {
     return type;
 }
 
+std::optional<BusinessType> StandardBusiness::typeFromString(const std::string& text) {
+    if (text == "LEMONADE") return BusinessType::LEMONADE;
+    if (text == "ICE_CREAM") return BusinessType::ICE_CREAM;
+    if (text == "RESTAURANT") return BusinessType::RESTAURANT;
+    if (text == "PIZZA") return BusinessType::PIZZA;
+    if (text == "DONUT") return BusinessType::DONUT;
+    if (text == "SHRIMP") return BusinessType::SHRIMP;
+    return std::nullopt;
+}
+
 std::string StandardBusiness::getStatusLabel() const {
     return "Standard x" + std::to_string(typeFactor()).substr(0, 4);
 }

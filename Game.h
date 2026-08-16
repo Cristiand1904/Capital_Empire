@@ -12,6 +12,10 @@ private:
     static const std::string SAVE_HEADER;
     static const int SAVE_VERSION;
 
+    static const std::string BUSINESSES_FILE;
+    static const std::string GOLD_UPGRADES_FILE;
+    static const std::string ACHIEVEMENTS_FILE;
+
     void setupBusinesses();
     std::vector<std::string> updateSpecialBusinesses(double deltaTime);
 

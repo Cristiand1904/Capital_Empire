@@ -39,6 +39,14 @@ std::string SeasonalBusiness::seasonName(Season season) {
     return "Necunoscut";
 }
 
+std::optional<Season> SeasonalBusiness::seasonFromString(const std::string& text) {
+    if (text == "SPRING") return Season::SPRING;
+    if (text == "SUMMER") return Season::SUMMER;
+    if (text == "AUTUMN") return Season::AUTUMN;
+    if (text == "WINTER") return Season::WINTER;
+    return std::nullopt;
+}
+
 bool SeasonalBusiness::isInFavoriteSeason() const {
     return getCurrentSeason() == favoriteSeason;
 }

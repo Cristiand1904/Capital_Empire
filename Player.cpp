@@ -6,56 +6,28 @@
 #include <sstream>
 #include <utility>
 
-const std::vector<GoldUpgrade> Player::catalog = {
-    GoldUpgrade(1,   5, "Profit x2",             "Dubleaza profitul global"),
-    GoldUpgrade(2,  10, "Discount 10%",          "Reduce toate costurile cu 10%"),
-    GoldUpgrade(3,  15, "Speed +10%",            "Toate afacerile produc cu 10% mai repede"),
-    GoldUpgrade(4,   3, "Small Biz Bonus +25%",  "Creste profitul global cu 25%"),
-    GoldUpgrade(5,   5, "Lemonade Mastery x10",  "Limonada produce de 10 ori mai mult"),
-    GoldUpgrade(6,   8, "Corp Tax Cut +50%",     "Creste profitul global cu 50%"),
-    GoldUpgrade(7,  12, "Headhunter -50% Mng",   "Managerii costa cu 50% mai putin"),
-    GoldUpgrade(8,  20, "Night Shift 80% Off",   "Castigi 80% din productia offline"),
-    GoldUpgrade(9,  25, "Bulk Buying -20% Upg",  "Reduce toate costurile cu inca 20%"),
-    GoldUpgrade(10, 30, "Automation Speed +20%", "Toate afacerile produc cu inca 20% mai repede"),
-    GoldUpgrade(11, 40, "Golden Touch +10%",     "Primesti cu 10% mai mult gold la prestige"),
-    GoldUpgrade(12, 50, "Market Monopoly x5",    "Creste profitul global de 5 ori"),
-    GoldUpgrade(13, 60, "Ocean King Shrimp x5",  "Crevetii produc de 5 ori mai mult")
-};
+namespace {
+    size_t upgradeSlots(const std::vector<GoldUpgrade>& upgrades) {
+        size_t highest = 0;
+        for (const auto& upgrade : upgrades) {
+            highest = std::max(highest, static_cast<size_t>(upgrade.getId()));
+        }
+        return highest + 1;
+    }
+}
 
-Player::Player(const std::string& name, double money)
-    : name(name), wallet(money), gold(0), prestigeCount(0),
+Player::Player(std::string name, double money, std::vector<GoldUpgrade> upgrades,
+               std::vector<Achievement> achievements)
+    : name(std::move(name)), wallet(money), gold(0), prestigeCount(0),
+      achievements(std::move(achievements)), goldUpgrades(std::move(upgrades)),
       globalProfitMultiplier(1.0), globalDiscount(0.0), globalSpeedMultiplier(1.0),
       managerCostDiscount(0.0), offlineEarningsRatio(0.5), prestigeGoldBonus(0.0),
       tempBoostTimer(0.0), tempBoostMultiplier(1.0),
-      goldUpgradesOwned(catalog.size() + 1, false) {
-    initAchievements();
-}
-
-void Player::initAchievements() {
-    achievements.emplace_back("Primul Dolar", "Castiga primul tau dolar", 10.0, AchievementType::MONEY, 1.0);
-    achievements.emplace_back("Primul Upgrade", "Fa un upgrade la o afacere", 10.0, AchievementType::HAS_UPGRADE, 1.0);
-    achievements.emplace_back("Primul Manager", "Angajeaza un manager", 10.0, AchievementType::HAS_MANAGER, 1.0);
-    achievements.emplace_back("Suta de Dolari", "Strange 100$", 100.0, AchievementType::MONEY, 100.0);
-    achievements.emplace_back("Mie de Dolari", "Strange 1.000$", 500.0, AchievementType::MONEY, 1000.0);
-    achievements.emplace_back("Magnat", "Strange 100.000$", 50000.0, AchievementType::MONEY, 100000.0);
-    achievements.emplace_back("Milionar", "Strange 1.000.000$", 500000.0, AchievementType::MONEY, 1000000.0);
-    achievements.emplace_back("Miliardar", "Strange 1.000.000.000$", 50000000.0, AchievementType::MONEY, 1000000000.0);
-    achievements.emplace_back("Inceputuri", "Atinge total 10 nivele la afaceri", 500.0, AchievementType::TOTAL_LEVELS, 10.0);
-    achievements.emplace_back("In Crestere", "Atinge total 50 nivele la afaceri", 5000.0, AchievementType::TOTAL_LEVELS, 50.0);
-    achievements.emplace_back("Expansiune", "Atinge total 100 nivele la afaceri", 50000.0, AchievementType::TOTAL_LEVELS, 100.0);
-    achievements.emplace_back("Imperiu", "Atinge total 500 nivele la afaceri", 1000000.0, AchievementType::TOTAL_LEVELS, 500.0);
-    achievements.emplace_back("Dominatie", "Atinge total 1000 nivele la afaceri", 10000000.0, AchievementType::TOTAL_LEVELS, 1000.0);
-    achievements.emplace_back("Sef de Echipa", "Angajeaza 3 manageri", 25000.0, AchievementType::TOTAL_MANAGERS, 3.0);
-    achievements.emplace_back("Consiliu Complet", "Angajeaza 6 manageri", 250000.0, AchievementType::TOTAL_MANAGERS, 6.0);
-    achievements.emplace_back("Rege al Crevetilor", "Ridica Crevetii la nivelul 25", 2000000.0,
-                              AchievementType::SPECIFIC_BUSINESS_LEVEL, 25.0, "Creveti");
-    achievements.emplace_back("Renastere", "Fa primul prestige", 100000.0, AchievementType::PRESTIGE_COUNT, 1.0);
-    achievements.emplace_back("Investitor de Aur", "Strange 25 gold", 500000.0, AchievementType::TOTAL_GOLD, 25.0);
-}
+      goldUpgradesOwned(upgradeSlots(goldUpgrades), false) {}
 
 Player::Player(const Player& other)
     : name(other.name), wallet(other.wallet), gold(other.gold), prestigeCount(other.prestigeCount),
-      achievements(other.achievements),
+      achievements(other.achievements), goldUpgrades(other.goldUpgrades),
       globalProfitMultiplier(other.globalProfitMultiplier),
       globalDiscount(other.globalDiscount),
       globalSpeedMultiplier(other.globalSpeedMultiplier),
@@ -80,6 +52,7 @@ void swap(Player& first, Player& second) noexcept {
     swap(first.prestigeCount, second.prestigeCount);
     swap(first.businesses, second.businesses);
     swap(first.achievements, second.achievements);
+    swap(first.goldUpgrades, second.goldUpgrades);
     swap(first.globalProfitMultiplier, second.globalProfitMultiplier);
     swap(first.globalDiscount, second.globalDiscount);
     swap(first.globalSpeedMultiplier, second.globalSpeedMultiplier);
@@ -113,6 +86,7 @@ const std::vector<Achievement>& Player::getAchievements() const { return achieve
 double Player::getTempBoostTimer() const { return tempBoostTimer; }
 double Player::getTempBoostMultiplier() const { return tempBoostMultiplier; }
 const std::vector<bool>& Player::getGoldUpgradesOwned() const { return goldUpgradesOwned; }
+const std::vector<GoldUpgrade>& Player::goldUpgradeCatalog() const { return goldUpgrades; }
 
 Business& Player::businessAt(int index) {
     if (index < 0 || static_cast<size_t>(index) >= businesses.size()) {
@@ -334,17 +308,13 @@ void Player::activateTempBoost(double duration, double multiplier) {
     tempBoostMultiplier = multiplier;
 }
 
-const std::vector<GoldUpgrade>& Player::goldUpgradeCatalog() {
-    return catalog;
-}
-
-const GoldUpgrade& Player::findGoldUpgrade(int id) {
-    for (const auto& upgrade : catalog) {
-        if (upgrade.getId() == id) {
-            return upgrade;
-        }
+const GoldUpgrade& Player::findGoldUpgrade(int id) const {
+    const auto it = std::find_if(goldUpgrades.begin(), goldUpgrades.end(),
+                                 [id](const GoldUpgrade& upgrade) { return upgrade.getId() == id; });
+    if (it == goldUpgrades.end()) {
+        throw UnknownUpgradeException(id);
     }
-    throw UnknownUpgradeException(id);
+    return *it;
 }
 
 bool Player::hasGoldUpgrade(int id) const {
@@ -370,26 +340,45 @@ void Player::buyGoldUpgrade(int id) {
 
     gold -= upgrade.getCost();
     goldUpgradesOwned[static_cast<size_t>(id)] = true;
-    applyGoldUpgradeEffect(id);
+    applyGoldUpgradeEffect(upgrade);
 }
 
-void Player::applyGoldUpgradeEffect(int id) {
-    switch (id) {
-        case 1:  globalProfitMultiplier += 1.0; break;
-        case 2:  globalDiscount = std::min(0.9, globalDiscount + 0.1); break;
-        case 3:  globalSpeedMultiplier += 0.1; break;
-        case 4:  globalProfitMultiplier += 0.25; break;
-        case 5:  businessMultipliers["Limonada"] = 10.0; break;
-        case 6:  globalProfitMultiplier += 0.5; break;
-        case 7:  managerCostDiscount = std::min(0.9, managerCostDiscount + 0.5); break;
-        case 8:  offlineEarningsRatio = 0.8; break;
-        case 9:  globalDiscount = std::min(0.9, globalDiscount + 0.2); break;
-        case 10: globalSpeedMultiplier += 0.2; break;
-        case 11: prestigeGoldBonus += 0.1; break;
-        case 12: globalProfitMultiplier += 4.0; break;
-        case 13: businessMultipliers["Creveti"] = 5.0; break;
-        default: throw UnknownUpgradeException(id);
+void Player::applyGoldUpgradeEffect(const GoldUpgrade& upgrade) {
+    const double value = upgrade.getValue();
+
+    switch (upgrade.getEffect()) {
+        case GoldEffect::PROFIT:
+            globalProfitMultiplier += value;
+            break;
+        case GoldEffect::DISCOUNT:
+            globalDiscount = std::min(0.9, globalDiscount + value);
+            break;
+        case GoldEffect::SPEED:
+            globalSpeedMultiplier += value;
+            break;
+        case GoldEffect::MANAGER_DISCOUNT:
+            managerCostDiscount = std::min(0.9, managerCostDiscount + value);
+            break;
+        case GoldEffect::OFFLINE_RATIO:
+            offlineEarningsRatio = value;
+            break;
+        case GoldEffect::PRESTIGE_GOLD:
+            prestigeGoldBonus += value;
+            break;
+        case GoldEffect::BUSINESS_MULTIPLIER:
+            businessMultipliers[upgrade.getTarget()] = value;
+            break;
     }
+}
+
+void Player::resetBonuses() {
+    globalProfitMultiplier = 1.0;
+    globalDiscount = 0.0;
+    globalSpeedMultiplier = 1.0;
+    managerCostDiscount = 0.0;
+    offlineEarningsRatio = 0.5;
+    prestigeGoldBonus = 0.0;
+    businessMultipliers.clear();
 }
 
 void Player::restoreProgress(double savedMoney, int savedGold, int savedPrestigeCount,
@@ -401,20 +390,14 @@ void Player::restoreProgress(double savedMoney, int savedGold, int savedPrestige
     tempBoostTimer = std::max(0.0, boostTimer);
     tempBoostMultiplier = boostMultiplier > 0.0 ? boostMultiplier : 1.0;
 
-    globalProfitMultiplier = 1.0;
-    globalDiscount = 0.0;
-    globalSpeedMultiplier = 1.0;
-    managerCostDiscount = 0.0;
-    offlineEarningsRatio = 0.5;
-    prestigeGoldBonus = 0.0;
-    businessMultipliers.clear();
-    goldUpgradesOwned.assign(catalog.size() + 1, false);
+    resetBonuses();
+    goldUpgradesOwned.assign(upgradeSlots(goldUpgrades), false);
 
-    for (const auto& upgrade : catalog) {
+    for (const auto& upgrade : goldUpgrades) {
         const auto id = static_cast<size_t>(upgrade.getId());
         if (id < ownedUpgrades.size() && ownedUpgrades[id]) {
             goldUpgradesOwned[id] = true;
-            applyGoldUpgradeEffect(upgrade.getId());
+            applyGoldUpgradeEffect(upgrade);
         }
     }
 }

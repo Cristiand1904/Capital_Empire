@@ -1,4 +1,5 @@
 #pragma once
+#include <optional>
 #include "Business.h"
 
 enum class Season {
@@ -32,4 +33,5 @@ public:
 
     static Season getCurrentSeason();
     static std::string seasonName(Season season);
+    static std::optional<Season> seasonFromString(const std::string& text);
 };
